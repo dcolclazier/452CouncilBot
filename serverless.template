@@ -54,7 +54,6 @@ Resources:
       Type: 'AWS::EC2::SecurityGroup'
       Properties:
         GroupDescription: 'Security group for EC2 instance running Discord Bot'
-        GroupName: 'DiscordBot-EC2-SG'
     
     EC2SecurityGroupEgress:
       Type: 'AWS::EC2::SecurityGroupEgress'
