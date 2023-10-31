@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace MVP.DiscordBot.Contract
+namespace Council.DiscordBot.Contract
 {
     public interface IAssemblyFactory
     {

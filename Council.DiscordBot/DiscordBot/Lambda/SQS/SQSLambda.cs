@@ -8,7 +8,7 @@ using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
 
-namespace MVP.DiscordBot.Lambda.SQS
+namespace Council.DiscordBot.Lambda.SQS
 {
 
     public class CFTLambda

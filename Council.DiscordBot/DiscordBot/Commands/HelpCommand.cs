@@ -2,12 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Text;
-using MVP.DiscordBot.Core;
 using Discord.Commands;
 using System.Threading.Tasks;
+using Council.DiscordBot.Core;
 
-namespace MVP.DiscordBot.Commands
+namespace Council.DiscordBot.Commands
 {
 
     [DiscordCommand]
@@ -28,7 +27,7 @@ namespace MVP.DiscordBot.Commands
 
         private IEnumerable<Type> GetCommandTypes()
         {
-            
+
             List<Type> commandTypes = new List<Type>();
             try
             {

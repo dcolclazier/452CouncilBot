@@ -3,7 +3,7 @@ using System;
 using System.Linq;
 
 
-namespace MVP.DiscordBot
+namespace Council.DiscordBot
 {
     using Newtonsoft.Json;
     using System.Collections;

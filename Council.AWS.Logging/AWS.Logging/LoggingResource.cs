@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 using MVP.AWS.Logging.Contract;
-using MVP.MEF.NetCore;
+using MEF.NetCore;
 using System.Composition;
 
 namespace AWS.Logging

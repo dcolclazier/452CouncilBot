@@ -6,7 +6,7 @@
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);CopyProjectReferencesToPackage;GetMyPackageFiles</TargetsForTfmSpecificBuildOutput>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <Authors>MVP Foundries</Authors>
+    <Authors>David Colclazier</Authors>
     <Company />
     <Description>Contains functionality for MEF (.NET Standard, .NET Core), also supports mocking exports for unit testing.</Description>
   </PropertyGroup>

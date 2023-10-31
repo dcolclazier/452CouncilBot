@@ -1,8 +1,8 @@
+using Council.DiscordBot.Core;
 using Discord.Commands;
-using MVP.DiscordBot.Core;
 using System.Threading.Tasks;
 
-namespace MVP.DiscordBot.Commands
+namespace Council.DiscordBot.Commands
 {
     [DiscordCommand]
     public class PingCommand : ModuleBase<SocketCommandContext>

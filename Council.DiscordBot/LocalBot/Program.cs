@@ -1,4 +1,4 @@
-using MVP.DiscordBot.Lambda;
+using Council.DiscordBot.Lambda;
 using System.Threading.Tasks;
 
 namespace LocalBot

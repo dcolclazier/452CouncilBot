@@ -1,4 +1,4 @@
-namespace MVP.DiscordBot.Commands
+namespace Council.DiscordBot.Commands
 {
     internal class ParsePriceResult
     {

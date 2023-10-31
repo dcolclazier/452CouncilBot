@@ -5,14 +5,14 @@ using System.Collections.Generic;
 using System.Linq;
 using System;
 using System.Net;
-using MVP.MEF.NetCore;
+using MEF.NetCore;
 using MVP.AWS.Logging.Contract;
 using Amazon.Translate;
 using Amazon.Translate.Model;
-using MVP.DiscordBot.Core;
 using System.Composition;
+using Council.DiscordBot.Core;
 
-namespace MVP.DiscordBot.Commands
+namespace Council.DiscordBot.Commands
 {
 
 

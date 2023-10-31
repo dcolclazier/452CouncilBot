@@ -11,6 +11,9 @@ Parameters:
         Description: AMI ID for EC2 instance
         Type: String
         Default: ami-0cd5f46e93e42a496
+    TokenName:
+        Description: Name of discord token property
+        Type: String
 
 Resources:
     EC2Role:
@@ -70,6 +73,8 @@ Resources:
                     yum update -y
                     yum install -y unzip aws-cli dotnet-sdk-3.1
                     aws s3 cp s3://${ArtifactBucket}/${ArtifactName} /tmp/artif.zip
+                    export TOKENNAME=${TokenName}
+                    export AWS_DEFAULT_REGION=${AWS::Region}
                     unzip /tmp/artif.zip -d /opt/bot/
                     cd /opt/bot/
                     dotnet YourBotAssembly.dll

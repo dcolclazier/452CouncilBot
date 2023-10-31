@@ -1,9 +1,9 @@
-using MVP.DiscordBot.Contract;
+using Council.DiscordBot.Contract;
 using System.Collections.Generic;
 using System.Composition;
 using System.Linq;
 
-namespace MVP.DiscordBot.Core
+namespace Council.DiscordBot.Core
 {
     [Export(typeof(IAssemblyFactory))]
     public class DiscordAssemblyFactory : IAssemblyFactory

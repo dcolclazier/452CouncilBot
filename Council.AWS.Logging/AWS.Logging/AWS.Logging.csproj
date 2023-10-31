@@ -27,4 +27,5 @@
     <ProjectReference Include="..\..\Council.MEF.NetCore\MEF.NetCore\MEF.NetCore.csproj" />
   </ItemGroup>
 
+
 </Project>

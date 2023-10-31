@@ -1,9 +1,9 @@
 using Discord.Commands;
 using Discord;
 using System.Threading.Tasks;
-using MVP.DiscordBot.Core;
+using Council.DiscordBot.Core;
 
-namespace MVP.DiscordBot.Commands
+namespace Council.DiscordBot.Commands
 {
 
     [DiscordCommand]

@@ -10,12 +10,12 @@ using System.Threading.Tasks;
 using System.Timers;
 using Timer = System.Timers.Timer;
 using AWS.Logging;
-using MVP.MEF.NetCore;
+using MEF.NetCore;
 using Microsoft.Extensions.Logging;
-using MVP.DiscordBot.Contract;
 using System.Composition;
+using Council.DiscordBot.Contract;
 
-namespace MVP.DiscordBot.Core
+namespace Council.DiscordBot.Core
 {
     [Export(typeof(IConnectionService))]
     [Shared]
@@ -32,10 +32,10 @@ namespace MVP.DiscordBot.Core
         [Import] private IAssemblyFactory _assemblyFactory { get; set; } = null;
         public bool PendingDisconnect { get; private set; }
 
-        
+
         public DiscordConnectionService() : base(nameof(DiscordConnectionService))
         {
-            
+
             MEFLoader.SatisfyImportsOnce(this);
 
             Client = new DiscordSocketClient(new DiscordSocketConfig
@@ -54,12 +54,13 @@ namespace MVP.DiscordBot.Core
 
         public async Task InitializeAsync(Func<Task> OnReady, string token, int timeToRun, EventWaitHandle waitHandle)
         {
-            if (waitHandle != null) {
+            if (waitHandle != null)
+            {
                 _waitHandle = waitHandle;
             }
             Logger.LogInformation("InitializeAsync");
 
-            if(timeToRun > 0) StartTimer(timeToRun);
+            if (timeToRun > 0) StartTimer(timeToRun);
 
             await RemoveAllCommandsAsync();
 
@@ -109,14 +110,15 @@ namespace MVP.DiscordBot.Core
         public async Task DisconnectAsync()
         {
             Logger.LogInformation("DisconnectAsync");
-            
-            
+
+
             try
             {
                 await RemoveAllCommandsAsync();
                 Client.MessageReceived -= OnMessageReceived;
             }
-            catch (Exception ex) {
+            catch (Exception ex)
+            {
 
                 Logger.LogWarning("Couldn't unregister events: " + ex.ConcatMessages());
             }
@@ -125,7 +127,7 @@ namespace MVP.DiscordBot.Core
             {
                 await Client.StopAsync();
             }
-            catch (Exception ex) 
+            catch (Exception ex)
             {
                 Logger.LogWarning("Couldn't stop the client: " + ex.ConcatMessages());
             }
@@ -135,7 +137,7 @@ namespace MVP.DiscordBot.Core
                 await Client.LogoutAsync();
                 await Task.Delay(1000);
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 Logger.LogWarning("Couldn't disconnect: " + ex.ConcatMessages());
             }

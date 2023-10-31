@@ -7,7 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 
-namespace MVP.MEF.NetCore
+namespace MEF.NetCore
 {
     /// <summary>
     /// Set this to true for unit testing

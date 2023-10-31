@@ -1,14 +1,14 @@
 using Discord.Commands;
 using Discord;
 using System.Threading.Tasks;
-using MVP.DiscordBot.Core;
 using Discord.WebSocket;
 using System.Linq;
 using System;
 using System.Collections.Generic;
 using FuzzySharp;
+using Council.DiscordBot.Core;
 
-namespace MVP.DiscordBot.Commands
+namespace Council.DiscordBot.Commands
 {
     [DiscordCommand]
     public class RoleRequest : ModuleBase<SocketCommandContext>
@@ -22,7 +22,7 @@ namespace MVP.DiscordBot.Commands
             var matchedRole = availableRoles
                                 .OrderByDescending(role => Fuzz.PartialRatio(role, requestedRoleString))
                                 .First();
-            if(matchedRole == null)
+            if (matchedRole == null)
             {
                 await ReplyAsync("Role not found!");
                 await ReplyAsync($"Role list: {string.Join(",", Context.Guild.Roles)}");

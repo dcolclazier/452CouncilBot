@@ -1,5 +1,4 @@
 using Amazon.Lambda.Core;
-using Amazon.Lambda.Serialization.Json;
 using System.Composition;
 using System.Threading.Tasks;
 using System.Threading;
@@ -7,18 +6,22 @@ using Amazon.SecretsManager;
 using Amazon.SecretsManager.Model;
 using System;
 using Microsoft.Extensions.Logging;
-using MVP.DiscordBot.Contract;
-using MVP.MEF.NetCore;
+using MEF.NetCore;
 using AWS.Logging;
+using Council.DiscordBot.Contract;
+using Newtonsoft.Json;
+using System.Collections.Generic;
 
-namespace MVP.DiscordBot.Lambda
+namespace Council.DiscordBot.Lambda
 {
 
-    public class DiscordBotLocal : LoggingResource {
+    public class DiscordBotLocal : LoggingResource
+    {
         [Import]
         private IConnectionService _connectionService { get; set; } = null;
 
-        public DiscordBotLocal(): base(nameof(DiscordBotLocal)) {
+        public DiscordBotLocal() : base(nameof(DiscordBotLocal))
+        {
             MEFLoader.SatisfyImportsOnce(this);
         }
 
@@ -26,16 +29,20 @@ namespace MVP.DiscordBot.Lambda
         {
             Logger.LogInformation("Disconnecting in case we didn't get a chance to before.");
             await _connectionService.DisconnectAsync();
-            
+
             try
             {
                 var waitHandle = new AutoResetEvent(false);
-                var token = GetToken();
+                var token = await GetToken();
+
+                if(token == null)
+                {
+                    throw new NullReferenceException("Token was null... uh oh!");
+                }
                 Logger.LogInformation($"Connecting....");
                 await _connectionService.InitializeAsync(Client_Ready, token, 0, null);
-                
+
                 waitHandle.WaitOne();
-                // Logger.LogInformation("Disconnecting - Lambda timout reached.");
             }
             catch (Exception ex)
             {
@@ -43,82 +50,57 @@ namespace MVP.DiscordBot.Lambda
                 Logger.LogError($"Discord bot exited unexpectedly!");
                 await _connectionService.DisconnectAsync();
             }
-            
+
         }
 
         public async Task Client_Ready() => await _connectionService.Client.SetGameAsync("chasing electrons...", type: Discord.ActivityType.CustomStatus);
         
-        private string GetToken()
-        {
-            return Environment.GetEnvironmentVariable("DISCORDTOKEN", EnvironmentVariableTarget.User);
-        }
-    }
 
-    public class DiscordBotLambda : LoggingResource
-    {
+        public async Task<string> GetToken()
+        {   
+            string secretName = Environment.GetEnvironmentVariable("TOKENNAME");
+            string region = Environment.GetEnvironmentVariable("AWS_DEFAULT_REGION");
 
-        [Import]
-        private IConnectionService _connectionService { get; set; } = null;
+            using var client = new AmazonSecretsManagerClient(region: Amazon.RegionEndpoint.GetBySystemName(region));
 
-        /// <summary>
-        /// Time to run in ms
-        /// </summary>
-        private int TimeToRun { get; } = 885000;
+            GetSecretValueRequest request = new GetSecretValueRequest
+            {
+                SecretId = secretName
+            };
 
-        public DiscordBotLambda() : base(nameof(DiscordBotLambda))
-        {
-            MEFLoader.SatisfyImportsOnce(this);
-        }
-
-        [LambdaSerializer(typeof(JsonSerializer))]
-        public async Task RunAsync(ILambdaContext context)
-        {
-            Logger.LogInformation("Disconnecting in case we didn't get a chance to before.");
-            await _connectionService.DisconnectAsync();
-
+            GetSecretValueResponse response = null;
             try
             {
-                var waitHandle = new AutoResetEvent(false);
-                Logger.LogInformation($"Connecting - Timer set to {TimeToRun} ms.");
-                await _connectionService.InitializeAsync(Client_Ready, await GetTokenAsync(), TimeToRun, waitHandle);
-                waitHandle.WaitOne();
-                Logger.LogInformation("Disconnecting - Lambda timout reached.");
+                response = await client.GetSecretValueAsync(request);
+                if (response.SecretString != null)
+                {
+                    var parsedSecrets = JsonConvert.DeserializeObject<Dictionary<string, string>>(response.SecretString);
+                    if (parsedSecrets.ContainsKey("Token"))
+                    {
+                        return parsedSecrets["Token"];
+                    }
+                }
+                else
+                {
+                    Logger.LogError("The secret string was empty... invalid!");
+                }
             }
-            catch (Exception ex)
+            catch (ResourceNotFoundException)
             {
-                Logger.LogError($"Unhandled error: {ex.Message}. Stack Trace: {ex.StackTrace}");
-                Logger.LogError($"Discord bot exited unexpectedly!");
+                Logger.LogError("The requested secret " + secretName + " was not found");
             }
-            finally
+            catch (InvalidRequestException e)
             {
-                await _connectionService.DisconnectAsync();
+                Logger.LogError("The request was invalid due to: " + e.Message);
             }
-        }
+            catch (InvalidParameterException e)
+            {
+                Logger.LogError("The request had invalid params: " + e.Message);
+            }
 
-        public async Task Client_Ready() {
-            await _connectionService.Client.SetGameAsync("Whimsically chasing electrons", type: Discord.ActivityType.CustomStatus);
-         
-        }
-        
-        private async Task<string> GetTokenAsync()
-        {
-            using var client = new AmazonSecretsManagerClient();
-            var response = await client.GetSecretValueAsync(new GetSecretValueRequest
-            {
-                SecretId = "MVP/setup/discordtoken"
-            });
-
-            if (response.SecretString == null)
-            {
-                Logger.LogError("FATAL: Unable to retrieve discord token!!");
-                return string.Empty;
-            }
-            return response.SecretString;
-        }
-
+            return null; 
+        }   
 
     }
-
-
 
 }
