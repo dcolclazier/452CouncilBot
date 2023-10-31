@@ -117,7 +117,6 @@ Resources:
             DomainName: council-es
             NodeToNodeEncryptionOptions:
                 Enabled: true
-                KmsKeyId: !Ref ElasticsearchKMSKey
             EncryptionAtRestOptions:
                 Enabled: true
                 KmsKeyId: !Ref ElasticsearchKMSKey
