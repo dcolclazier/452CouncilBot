@@ -10,7 +10,7 @@ Parameters:
     AMIId:
         Description: AMI ID for EC2 instance
         Type: String
-        Default: ami-01bc990364452ab3e
+        Default: ami-0cd5f46e93e42a496
 
 Resources:
     EC2Role:
