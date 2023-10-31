@@ -1,10 +1,12 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: EC2-based Discord bot with Elasticsearch
 Parameters:
-    CodeBucket:
+    ArtifactBucket:
         Description: S3 bucket containing bot code
         Type: String
-        Default: MVP-builds
+    ArtifactName:
+        Description: S3 artifact object key
+        Type: String
     AMIId:
         Description: AMI ID for EC2 instance
         Type: String
@@ -26,7 +28,18 @@ Resources:
                 PolicyDocument:
                     Version: 2012-10-17
                     Statement:
-                      # ... [Your existing permissions]
+                      - Effect: Allow
+                        Action:
+                          - logs:*
+                          - lambda:*
+                          - dynamodb:*
+                          - translate:*
+                          - comprehend:*
+                          - s3:*
+                          - secretsmanager:*
+                          - xray:PutTraceSegments
+                          - xray:PutTelemetryRecords
+                        Resource: "*"
                       - Effect: Allow
                         Action: es:*
                         Resource: !Sub arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/my-es-domain/*
@@ -41,7 +54,7 @@ Resources:
         Type: AWS::EC2::SecurityGroup
         Properties:
             GroupDescription: Security group for bot EC2 instance
-            Egress:
+            SecurityGroupEgress:
                 - CidrIp: 0.0.0.0/0
                   IpProtocol: -1
 
@@ -58,15 +71,15 @@ Resources:
                     #!/bin/bash
                     yum update -y
                     yum install -y unzip aws-cli dotnet-sdk-3.1
-                    aws s3 cp s3://${CodeBucket}/Council.DiscordBot/12j7jz/Council.DiscordBot.zip /tmp/
-                    unzip /tmp/MVP.DiscordBot.zip -d /opt/bot/
+                    aws s3 cp s3://${ArtifactBucket}/${ArtifactName} /tmp/artif.zip
+                    unzip /tmp/artif.zip -d /opt/bot/
                     cd /opt/bot/
                     dotnet YourBotAssembly.dll
 
     ElasticsearchDomain:
         Type: "AWS::Elasticsearch::Domain"
         Properties:
-            DomainName: es
+            DomainName: council-es
             ElasticsearchVersion: 7.10
             NodeToNodeEncryptionOptions:
                 Enable: true
@@ -82,4 +95,4 @@ Resources:
                       Principal:
                         AWS: !Sub arn:aws:iam::${AWS::AccountId}:role/${EC2Role}
                       Action: es:ESHttp*
-                      Resource: !Sub arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/es/*
+                      Resource: !Sub arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/ouncil-es/*
