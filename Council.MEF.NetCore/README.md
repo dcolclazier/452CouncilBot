@@ -1,0 +1,1 @@
+SuperNova.MEF.NetCore
