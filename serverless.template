@@ -73,17 +73,55 @@ Resources:
                     unzip /tmp/artif.zip -d /opt/bot/
                     cd /opt/bot/
                     dotnet YourBotAssembly.dll
-
+    ElasticsearchKMSKey:
+      Type: 'AWS::KMS::Key'
+      Properties:
+        Description: 'KMS key for Elasticsearch node-to-node encryption'
+        KeyPolicy:
+          Version: '2012-10-17'
+          Id: 'key-default-1'
+          Statement:
+          - Sid: 'Enable IAM User Permissions'
+            Effect: 'Allow'
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: 'kms:*'
+            Resource: '*'
+          - Sid: 'Allow access through AWS Elasticsearch'
+            Effect: 'Allow'
+            Principal:
+              Service: 'es.amazonaws.com'
+            Action:
+              - 'kms:Encrypt'
+              - 'kms:Decrypt'
+              - 'kms:ReEncrypt*'
+              - 'kms:GenerateDataKey*'
+              - 'kms:CreateGrant'
+              - 'kms:DescribeKey'
+            Resource: '*'
+          - Sid: 'Allow EC2 instance to use the KMS key'
+            Effect: 'Allow'
+            Principal:
+              AWS: !GetAtt EC2Role.Arn
+            Action:
+              - 'kms:Encrypt'
+              - 'kms:Decrypt'
+              - 'kms:ReEncrypt*'
+              - 'kms:GenerateDataKey*'
+              - 'kms:DescribeKey'
+            Resource: '*'
+           
     ElasticsearchDomain:
-        Type: AWS::Elasticsearch::Domain
+        Type: AWS::OpenSearchService::Domain
         Properties:
             DomainName: council-es
-            ElasticsearchVersion: 7.10
             NodeToNodeEncryptionOptions:
-                Enable: true
+                Enabled: true
+                KmsKeyId: !Ref ElasticsearchKMSKey
             EncryptionAtRestOptions:
                 Enabled: true
-            ElasticsearchClusterConfig:
+                KmsKeyId: !Ref ElasticsearchKMSKey
+            ClusterConfig:
                 InstanceType: t3.small.search
                 InstanceCount: 1
             AccessPolicies:
