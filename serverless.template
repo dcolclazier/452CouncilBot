@@ -115,6 +115,9 @@ Resources:
         Type: AWS::OpenSearchService::Domain
         Properties:
             DomainName: council-es
+            EBSOptions:
+                EBSEnabled: true
+                VolumeSize: 10
             NodeToNodeEncryptionOptions:
                 Enabled: true
             EncryptionAtRestOptions:
