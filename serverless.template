@@ -77,7 +77,7 @@ Resources:
                     export AWS_DEFAULT_REGION=${AWS::Region}
                     unzip /tmp/artif.zip -d /opt/bot/
                     cd /opt/bot/
-                    dotnet YourBotAssembly.dll
+                    dotnet LocalBot.dll
     ElasticsearchKMSKey:
       Type: 'AWS::KMS::Key'
       Properties:
