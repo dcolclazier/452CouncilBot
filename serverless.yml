@@ -95,7 +95,7 @@ Resources:
         
           [Service]
           WorkingDirectory=/opt/${BotServiceName}
-          ExecStart=/usr/bin/dotnet /opt/discord-bot/${BotServiceName}.dll
+          ExecStart=/usr/bin/dotnet /opt/${BotServiceName}/LocalBot.dll
           Restart=always
           SyslogIdentifier=${BotServiceName}
         
@@ -113,6 +113,12 @@ Resources:
       MaxSize: '1'
       DesiredCapacity: '1'
       VPCZoneIdentifier: !Ref SubnetIds
+      UpdatePolicy:
+        AutoScalingReplacingUpdate:
+          WillReplace: true
+      CreationPolicy:
+        ResourceSignal:
+          Timeout: PT5M
       Tags:
         - Key: Name
           Value: DiscordBotInstance
