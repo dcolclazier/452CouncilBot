@@ -21,6 +21,9 @@ Parameters:
   ArtifactKey:
     Description: S3 object key for the bot artifact.
     Type: String
+  TokenName:
+    Description: Name of discord bot token secret
+    Type: String
   BotServiceName:
     Description: The name of the bot service.
     Type: String
@@ -80,6 +83,8 @@ Resources:
           #!/bin/bash
           yum update -y
           yum install -y aws-cli
+          export TOKENNAME=${TokenName}
+          export AWS_DEFAULT_REGION=${AWS::Region}
           aws s3 cp s3://${ArtifactBucket}/${ArtifactKey} /tmp/${BotServiceName}.zip
           unzip /tmp/discord-bot.zip -d /opt/${BotServiceName}/
           # Setup your bot as a service
