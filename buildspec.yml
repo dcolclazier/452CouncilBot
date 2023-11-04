@@ -5,13 +5,11 @@ phases:
     build:
         commands:
             - dotnet restore
-            - dotnet publish Council.DiscordBot.sln -c Release -r linux-x64 --self-contained true /m:1
+            - dotnet publish Council.DiscordBot.sln -c Release -r linux-x64 --self-contained true /m:1 -o build
     post_build:
         commands:
 artifacts:
     files:
-        - "buildinfo.xml"
-        - "bin/*.dll"
-        - "bin/*.json"
+        - "build/*.*"
         - "serverless.template"
     discard-paths: yes

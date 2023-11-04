@@ -37,8 +37,8 @@ namespace Council.DiscordBot.Commands
             }
 
             var message = await adminChannel.SendMessageAsync($"{Context.User.Mention} is requesting the \"{matchedRole}\" role. React with ?? to approve or ?? to deny.");
-            await message.AddReactionAsync(new Emoji("??"));
-            await message.AddReactionAsync(new Emoji("??"));
+            await message.AddReactionAsync(new Emoji("👍"));
+            await message.AddReactionAsync(new Emoji("👎"));
         }
         public async Task ReactionAddedAsync(Cacheable<IUserMessage, ulong> cache, ISocketMessageChannel channel, SocketReaction reaction)
         {
@@ -66,15 +66,17 @@ namespace Council.DiscordBot.Commands
                 var roleName = message.Content.Split('"')[1]; // Getting the role name from the message
                 var role = guild.Roles.FirstOrDefault(r => r.Name.Equals(roleName, StringComparison.InvariantCultureIgnoreCase));
 
-                if (reaction.Emote.Name == "??")
+                if (reaction.Emote.Name == "👍")
                 {
                     await guild.GetUser(user.Id).AddRoleAsync(role);
                     await message.Channel.SendMessageAsync($"{user.Mention} has been granted the \"{roleName}\" role.");
                 }
-                else if (reaction.Emote.Name == "??")
+                else if (reaction.Emote.Name == "👎")
                 {
                     await message.Channel.SendMessageAsync($"{user.Mention}'s request for the \"{roleName}\" role has been denied.");
                 }
+
+                await message.RemoveAllReactionsAsync();
             }
         }
 
