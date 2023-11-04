@@ -11,5 +11,5 @@ phases:
 artifacts:
     files:
         - "build/*.*"
-        - "serverless.template"
+        - "serverless.yml"
     discard-paths: yes
