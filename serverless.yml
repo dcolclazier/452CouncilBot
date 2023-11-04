@@ -77,7 +77,7 @@ Resources:
       InstanceType: !Ref InstanceType
       IamInstanceProfile: !Ref EC2InstanceProfile
       SecurityGroups:
-        - !Ref EC2SecurityGroup
+        - !GetAtt EC2SecurityGroup.GroupId
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
