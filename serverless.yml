@@ -86,7 +86,7 @@ Resources:
           export TOKENNAME=${TokenName}
           export AWS_DEFAULT_REGION=${AWS::Region}
           aws s3 cp s3://${ArtifactBucket}/${ArtifactKey} /tmp/${BotServiceName}.zip
-          unzip /tmp/discord-bot.zip -d /opt/${BotServiceName}/
+          unzip /tmp/${BotServiceName}.zip -d /opt/${BotServiceName}/
           # Setup your bot as a service
           cat <<EOF > /etc/systemd/system/${BotServiceName}.service
           [Unit]
