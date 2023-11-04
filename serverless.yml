@@ -28,6 +28,10 @@ Parameters:
     Description: The name of the bot service.
     Type: String
     Default: discordbot
+  RandomNumber:
+    Description: Aws sucks sometimes..
+    Type: String
+    Default: '__RANDOM__'
 
 Resources:
 
@@ -83,6 +87,7 @@ Resources:
           #!/bin/bash
           yum update -y
           yum install -y aws-cli
+          export RANDOM=${RandomNumber}
           export TOKENNAME=${TokenName}
           export AWS_DEFAULT_REGION=${AWS::Region}
           aws s3 cp s3://${ArtifactBucket}/${ArtifactKey} /tmp/${BotServiceName}.zip
@@ -113,12 +118,6 @@ Resources:
       MaxSize: '1'
       DesiredCapacity: '1'
       VPCZoneIdentifier: !Ref SubnetIds
-      UpdatePolicy:
-        AutoScalingReplacingUpdate:
-          WillReplace: true
-      CreationPolicy:
-        ResourceSignal:
-          Timeout: PT5M
       Tags:
         - Key: Name
           Value: DiscordBotInstance
