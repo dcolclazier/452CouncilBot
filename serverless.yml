@@ -1,0 +1,185 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: AWS CloudFormation for an EC2 Auto Scaling setup for a Discord bot.
+
+Parameters:
+  AMIId:
+    Description: AMI ID for the EC2 instance.
+    Type: String
+  InstanceType:
+    Description: EC2 instance type.
+    Type: String
+    Default: t2.micro
+  VPCId:
+    Description: VPC ID where the instance will be launched.
+    Type: AWS::EC2::VPC::Id
+  SubnetIds:
+    Description: Subnet ID(s) where the instance will be launched.
+    Type: List<AWS::EC2::Subnet::Id>
+  ArtifactBucket:
+    Description: S3 bucket name where the bot artifact is stored.
+    Type: String
+  ArtifactKey:
+    Description: S3 object key for the bot artifact.
+    Type: String
+  BotServiceName:
+    Description: The name of the bot service.
+    Type: String
+    Default: discordbot
+
+Resources:
+
+  EC2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore'
+      Policies:
+        - PolicyName: BotEC2Policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:*
+                  - lambda:*
+                  - dynamodb:*
+                  - translate:*
+                  - comprehend:*
+                  - s3:*
+                  - secretsmanager:*
+                  - xray:PutTraceSegments
+                  - xray:PutTelemetryRecords
+                Resource: "*"
+              - Effect: Allow
+                Action: es:*
+                Resource: !Sub arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/my-es-domain/*
+
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - Ref: EC2Role
+
+  BotLaunchConfiguration:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId: !Ref AMIId
+      InstanceType: !Ref InstanceType
+      IamInstanceProfile: !Ref EC2InstanceProfile
+      SecurityGroups:
+        - !Ref BotSecurityGroup
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y
+          yum install -y aws-cli
+          aws s3 cp s3://${ArtifactBucket}/${ArtifactKey} /tmp/${BotServiceName}.zip
+          unzip /tmp/discord-bot.zip -d /opt/${BotServiceName}/
+          # Setup your bot as a service
+          cat <<EOF > /etc/systemd/system/${BotServiceName}.service
+          [Unit]
+          Description=Discord Bot Service
+          After=network.target
+        
+          [Service]
+          WorkingDirectory=/opt/${BotServiceName}
+          ExecStart=/usr/bin/dotnet /opt/discord-bot/${BotServiceName}.dll
+          Restart=always
+          SyslogIdentifier=${BotServiceName}
+        
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+          systemctl enable ${BotServiceName}
+          systemctl start ${BotServiceName}
+
+  BotAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      LaunchConfigurationName: !Ref BotLaunchConfiguration
+      MinSize: '1'
+      MaxSize: '1'
+      DesiredCapacity: '1'
+      VPCZoneIdentifier: !Ref SubnetIds
+      Tags:
+        - Key: Name
+          Value: DiscordBotInstance
+          PropagateAtLaunch: 'true'
+  
+  EC2SecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: 'Security group for EC2 instance running Discord Bot'
+  
+  ElasticsearchKMSKey:
+    Type: 'AWS::KMS::Key'
+    Properties:
+      Description: 'KMS key for Elasticsearch node-to-node encryption'
+      KeyPolicy:
+        Version: '2012-10-17'
+        Id: 'key-default-1'
+        Statement:
+        - Sid: 'Enable IAM User Permissions'
+          Effect: 'Allow'
+          Principal:
+            AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+          Action: 'kms:*'
+          Resource: '*'
+        - Sid: 'Allow access through AWS Elasticsearch'
+          Effect: 'Allow'
+          Principal:
+            Service: 'es.amazonaws.com'
+          Action:
+            - 'kms:Encrypt'
+            - 'kms:Decrypt'
+            - 'kms:ReEncrypt*'
+            - 'kms:GenerateDataKey*'
+            - 'kms:CreateGrant'
+            - 'kms:DescribeKey'
+          Resource: '*'
+        - Sid: 'Allow EC2 instance to use the KMS key'
+          Effect: 'Allow'
+          Principal:
+            AWS: !GetAtt EC2Role.Arn
+          Action:
+            - 'kms:Encrypt'
+            - 'kms:Decrypt'
+            - 'kms:ReEncrypt*'
+            - 'kms:GenerateDataKey*'
+            - 'kms:DescribeKey'
+          Resource: '*'
+         
+  ElasticsearchDomain:
+    Type: AWS::OpenSearchService::Domain
+    Properties:
+      DomainName: council-es
+      EBSOptions:
+        EBSEnabled: true
+        VolumeSize: 10
+      NodeToNodeEncryptionOptions:
+        Enabled: true
+      EncryptionAtRestOptions:
+        Enabled: true
+        KmsKeyId: !Ref ElasticsearchKMSKey
+      ClusterConfig:
+        InstanceType: t3.small.search
+        InstanceCount: 1
+      AccessPolicies:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${AWS::AccountId}:role/${EC2Role}
+            Action: es:ESHttp*
+            Resource: !Sub arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/council-es/*
+Outputs:
+  BotAutoScalingGroupName:
+    Description: Auto Scaling Group Name for the Discord Bot
+    Value: !Ref BotAutoScalingGroup
