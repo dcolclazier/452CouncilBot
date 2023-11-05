@@ -82,13 +82,18 @@ Resources:
         Fn::Base64: !Sub |
           #!/bin/bash
           yum update -y
-          
-          wget https://download.visualstudio.microsoft.com/download/pr/ede8a287-3d61-4988-a356-32ff9129079e/bdb47b6b510ed0c4f0b132f7f4ad9d5a/dotnet-sdk-6.0.101-linux-x64.tar.gz
-          mkdir -p $HOME/dotnet && tar zxf dotnet-sdk-6.0.101-linux-x64.tar.gz -C $HOME/dotnet
-          
-          echo 'export DOTNET_ROOT=$HOME/dotnet' >> .bash_profile
-          echo 'export PATH=$PATH:$HOME/dotnet' >> .bash_profile
 
+          rm -rf /usr/share/dotnet
+          rm -rf ~/.dotnet
+          rm -f /etc/profile.d/dotnet.sh
+          
+          wget https://dot.net/v1/dotnet-install.sh
+          chmod +x dotnet-install.sh
+          mkdir -p /usr/share/dotnet
+          ./dotnet-install.sh -c 6.0 --install-dir /usr/share/dotnet
+          
+          echo 'export PATH=$PATH:/usr/share/dotnet' > /etc/profile.d/dotnet.sh
+          chmod +x /etc/profile.d/dotnet.sh
           # Install aws-cli
           yum install -y aws-cli
 

@@ -52,8 +52,8 @@ namespace MEF.NetCore
                 {
                     var startTime = DateTime.UtcNow;
                     var assemblyList = Directory.GetFiles(_assemblyPath, "DiscordBot*.dll").ToList();
-                    assemblyList.Concat(Directory.GetFiles(_assemblyPath, "AWS.Logging.dll"));
-                    assemblyList.Concat(Directory.GetFiles(_assemblyPath, "MEF.NetCore.dll"));
+                    assemblyList.AddRange(Directory.GetFiles(_assemblyPath, "AWS.Logging.dll"));
+                    assemblyList.AddRange(Directory.GetFiles(_assemblyPath, "MEF.NetCore.dll"));
                     var rules = new ConventionBuilder();
                     var currentAssembly = Assembly.GetExecutingAssembly().GetName();
                     foreach (var a in assemblyList)

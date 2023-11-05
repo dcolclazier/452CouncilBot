@@ -20,10 +20,7 @@ namespace Council.DiscordBot.Lambda
         [Import]
         private IConnectionService _connectionService { get; set; } = null;
 
-        public DiscordBotLocal() : base(nameof(DiscordBotLocal))
-        {
-            MEFLoader.SatisfyImportsOnce(this);
-        }
+        public DiscordBotLocal() : base(nameof(DiscordBotLocal)) { }
 
         public async Task RunAsync()
         {
@@ -33,12 +30,7 @@ namespace Council.DiscordBot.Lambda
             try
             {
                 var waitHandle = new AutoResetEvent(false);
-                var token = await GetToken();
-
-                if(token == null)
-                {
-                    throw new NullReferenceException("Token was null... uh oh!");
-                }
+                var token = await GetToken() ?? throw new NullReferenceException("Token was null... uh oh!");
                 Logger.LogInformation($"Connecting....");
                 await _connectionService.InitializeAsync(Client_Ready, token, 0, null);
 
@@ -53,7 +45,7 @@ namespace Council.DiscordBot.Lambda
 
         }
 
-        public async Task Client_Ready() => await _connectionService.Client.SetGameAsync("chasing electrons...", type: Discord.ActivityType.CustomStatus);
+        public async Task Client_Ready() => await _connectionService.Client.SetGameAsync("whimsically chasing electrons...", type: Discord.ActivityType.CustomStatus);
         
 
         public async Task<string> GetToken()
