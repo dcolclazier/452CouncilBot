@@ -28,10 +28,6 @@ Parameters:
     Description: The name of the bot service.
     Type: String
     Default: discordbot
-  RandomNumber:
-    Description: Aws sucks sometimes..
-    Type: String
-    Default: '__RANDOM__'
 
 Resources:
 
@@ -86,10 +82,17 @@ Resources:
         Fn::Base64: !Sub |
           #!/bin/bash
           yum update -y
+          
+          # Install .NET Core 3.1 SDK
+          rpm -Uvh https://packages.microsoft.com/config/centos/7/packages-microsoft-prod.rpm
+          yum install -y dotnet-runtime-5.0
+
+          # Install aws-cli
           yum install -y aws-cli
-          export RANDOM=${RandomNumber}
+
           export TOKENNAME=${TokenName}
           export AWS_DEFAULT_REGION=${AWS::Region}
+          
           aws s3 cp s3://${ArtifactBucket}/${ArtifactKey} /tmp/${BotServiceName}.zip
           unzip /tmp/${BotServiceName}.zip -d /opt/${BotServiceName}/
           # Setup your bot as a service
