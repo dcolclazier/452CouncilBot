@@ -85,8 +85,9 @@ Resources:
           
           wget https://download.visualstudio.microsoft.com/download/pr/ede8a287-3d61-4988-a356-32ff9129079e/bdb47b6b510ed0c4f0b132f7f4ad9d5a/dotnet-sdk-6.0.101-linux-x64.tar.gz
           mkdir -p $HOME/dotnet && tar zxf dotnet-sdk-6.0.101-linux-x64.tar.gz -C $HOME/dotnet
-          export DOTNET_ROOT=$HOME/dotnet
-          export PATH=$PATH:$HOME/dotnet
+          
+          echo 'export DOTNET_ROOT=$HOME/dotnet' >> .bash_profile
+          echo 'export PATH=$PATH:$HOME/dotnet' >> .bash_profile
 
           # Install aws-cli
           yum install -y aws-cli
@@ -104,7 +105,7 @@ Resources:
         
           [Service]
           WorkingDirectory=/opt/${BotServiceName}
-          ExecStart=/usr/bin/dotnet /opt/${BotServiceName}/LocalBot.dll
+          ExecStart=$HOME/dotnet /opt/${BotServiceName}/DiscordBot.Service.dll
           Restart=always
           SyslogIdentifier=${BotServiceName}
         
