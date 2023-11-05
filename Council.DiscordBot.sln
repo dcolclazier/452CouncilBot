@@ -8,7 +8,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{500019D3-7095-4844-B305-A71B19486681}"
 	ProjectSection(SolutionItems) = preProject
 		buildspec.yml = buildspec.yml
-		serverless.template = serverless.template
+		serverless.yml = serverless.yml
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LocalBot", "Council.DiscordBot\LocalBot\LocalBot.csproj", "{A6073A8A-2D29-412F-A791-56824F250246}"
@@ -16,6 +16,13 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MEF.NetCore", "Council.MEF.NetCore\MEF.NetCore\MEF.NetCore.csproj", "{1FB899A6-2006-40E5-B3D5-76BDF79800C9}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AWS.Logging", "Council.AWS.Logging\AWS.Logging\AWS.Logging.csproj", "{1802EE8C-52D2-4FC5-887A-9405DB81C718}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "scripts", "scripts", "{161E8597-3284-48B6-B2F8-480A650042BA}"
+	ProjectSection(SolutionItems) = preProject
+		install_bot.sh = install_bot.sh
+		start_bot.sh = start_bot.sh
+		stop_bot.sh = stop_bot.sh
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
