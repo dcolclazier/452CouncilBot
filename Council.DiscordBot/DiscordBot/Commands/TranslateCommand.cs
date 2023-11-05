@@ -53,7 +53,7 @@ namespace Council.DiscordBot.Commands
 
         [Command("translate")]
         [Summary("Translate some text!")]
-        public async Task TranslateAsync([Summary("!translate Russian \"In Soviet Russia, car drives you!!\"")] string to, string toTranslate)
+        public async Task TranslateAsync([Summary("!translate Japanese \"Hello world!\"")] string to, string toTranslate)
         {
             if (!_languageMap.Keys.Contains(to))
             {

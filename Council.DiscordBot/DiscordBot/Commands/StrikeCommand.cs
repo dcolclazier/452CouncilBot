@@ -5,7 +5,9 @@ using System.Threading.Tasks;
 using System.Linq;
 using Fastenshtein;
 using FuzzySharp;
+using Council.DiscordBot.Core;
 
+[DiscordCommand]
 public class ModerationModule : ModuleBase<SocketCommandContext>
 {
     private readonly string[] _offenseTypes = { "Tile Hitting", "Banner Burning", "Base Attacking" };
