@@ -87,15 +87,9 @@ Resources:
           rm -rf ~/.dotnet
           rm -f /etc/profile.d/dotnet.sh
           
-          wget https://dot.net/v1/dotnet-install.sh
-          chmod +x dotnet-install.sh
-          mkdir -p /usr/share/dotnet
-          ./dotnet-install.sh -c 6.0 --install-dir /usr/share/dotnet
-          
-          echo 'export PATH=$PATH:/usr/share/dotnet' > /etc/profile.d/dotnet.sh
-          chmod +x /etc/profile.d/dotnet.sh
+          sudo rpm -Uvh https://packages.microsoft.com/config/centos/7/packages-microsoft-prod.rpm
+          sudo yum install -y dotnet-sdk-7.0
 
-          source /etc/profile.d/dotnet.sh
           # Install aws-cli
           yum install -y aws-cli
 
