@@ -122,7 +122,7 @@ Resources:
       AutoScalingRollingUpdate:
         MinInstancesInService: '0'
         MaxBatchSize: '1'
-        PauseTime: PT12M5S
+        PauseTime: PT3M5S
         WaitOnResourceSignals: false
         SuspendProcesses:
           - HealthCheck
