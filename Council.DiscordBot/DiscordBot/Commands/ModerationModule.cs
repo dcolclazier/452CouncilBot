@@ -3,12 +3,8 @@ using System;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Linq;
-using Fastenshtein;
-using FuzzySharp;
 using Council.DiscordBot.Core;
-using Amazon.SQS;
 using Amazon.Translate.Model;
-using Amazon;
 using Amazon.S3;
 using Amazon.S3.Transfer;
 using Amazon.Translate;
@@ -34,7 +30,6 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         string playerId = null;
         string playerName = null;
         string allianceTag = null;
-        string offenseType = null;
 
         // Language detection and translation logic
         string languageCode = DetectLanguage(messageDetails);
@@ -54,7 +49,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         if (allianceMatch.Success) allianceTag = allianceMatch.Value;
 
         var offenseTypeInput = messageDetails.Split(' ').LastOrDefault();
-        offenseType = GetClosestOffenseType(offenseTypeInput);
+        string offenseType = GetClosestOffenseType(offenseTypeInput);
 
         if (Context.Message.Attachments.Any())
         {

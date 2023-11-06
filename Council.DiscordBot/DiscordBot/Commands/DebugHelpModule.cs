@@ -10,11 +10,17 @@ namespace Council.DiscordBot.Commands
 {
 
     [DiscordCommand]
-    public class HelpCommand : ModuleBase<SocketCommandContext>
+    public class DebugHelpModule : ModuleBase<SocketCommandContext>
     {
-        public HelpCommand()
+
+        [Command("ping")]
+        [Alias("p")]
+        [Summary("See if I'm responding to commands")]
+        public async Task PingAsync()
         {
+            await ReplyAsync("pong");
         }
+
         [Command("help")]
         [Alias("h")]
         [Summary("Show help")]

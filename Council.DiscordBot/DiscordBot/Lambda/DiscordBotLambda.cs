@@ -1,4 +1,3 @@
-using Amazon.Lambda.Core;
 using System.Composition;
 using System.Threading.Tasks;
 using System.Threading;
@@ -6,7 +5,6 @@ using Amazon.SecretsManager;
 using Amazon.SecretsManager.Model;
 using System;
 using Microsoft.Extensions.Logging;
-using MEF.NetCore;
 using AWS.Logging;
 using Council.DiscordBot.Contract;
 using Newtonsoft.Json;
