@@ -106,7 +106,7 @@ Resources:
         
           [Service]
           WorkingDirectory=/opt/${BotServiceName}
-          ExecStart=$HOME/dotnet /opt/${BotServiceName}/DiscordBot.Service.dll
+          ExecStart=/usr/bin/dotnet /opt/${BotServiceName}/DiscordBot.Service.dll
           Restart=always
           SyslogIdentifier=${BotServiceName}
         
