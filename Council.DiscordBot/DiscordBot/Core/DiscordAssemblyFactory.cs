@@ -10,7 +10,7 @@ namespace Council.DiscordBot.Core
     {
 #if RELEASE
         private static readonly string[] assemblies = {
-            $".\DiscordBot.Commands.dll",
+            $".\\DiscordBot.Commands.dll",
         };
 #else
         private static readonly string[] assemblies = {
