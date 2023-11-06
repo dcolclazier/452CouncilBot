@@ -40,7 +40,9 @@ namespace Council.DiscordBot.Core
 
             Client = new DiscordSocketClient(new DiscordSocketConfig
             {
-                LogLevel = LogSeverity.Debug
+                LogLevel = LogSeverity.Debug,
+                GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.MessageContent
+
             });
             //Client.Log += async (message) => await Task.Run(() => Logger.LogInformation($"LOG: {JsonConvert.SerializeObject(message)}"));
 
@@ -59,7 +61,6 @@ namespace Council.DiscordBot.Core
                 _waitHandle = waitHandle;
             }
             Logger.LogInformation("InitializeAsync");
-
             if (timeToRun > 0) StartTimer(timeToRun);
 
             await RemoveAllCommandsAsync();
