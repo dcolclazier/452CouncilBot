@@ -3,10 +3,10 @@ using System;
 using AWS.Logger;
 using System.Reflection;
 using System.Composition;
-using MVP.AWS.Logging.Contract;
 using System.IO;
+using AWS.Logging.Contract;
 
-namespace MVP.AWS.Logging
+namespace AWS.Logging
 {
     [Export(typeof(IServiceLoggerFactory))]
     [Shared]
@@ -48,9 +48,9 @@ namespace MVP.AWS.Logging
 
                 var group = Environment.GetEnvironmentVariable("LOGGING_CLOUDWATCH_GROUP");
 #if DEBUG
-                config.LogGroup = "MVP/default/debug";
+                config.LogGroup = "CouncilBot/default/debug";
 #else
-                config.LogGroup = string.IsNullOrEmpty(group) ? "MVP/default" : group;
+                config.LogGroup = string.IsNullOrEmpty(group) ? "CouncilBot/default" : group;
 #endif
 
                 var batchPushSecsStr = Environment.GetEnvironmentVariable("LOGGING_CLOUDWATCH_BATCHPUSHSECS");

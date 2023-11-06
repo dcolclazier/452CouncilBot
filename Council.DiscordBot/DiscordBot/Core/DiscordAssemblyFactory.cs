@@ -10,11 +10,11 @@ namespace Council.DiscordBot.Core
     {
 #if RELEASE
         private static readonly string[] assemblies = {
-            $"/var/task\\MVP.DiscordBot.dll",
+            $".\DiscordBot.Commands.dll",
         };
 #else
         private static readonly string[] assemblies = {
-            @"C:\Development\MVP.452\MVP.DiscordBot\bin\MVP.DiscordBot.dll",
+            @"C:\Development\MVP.452\MVP.DiscordBot\bin\DiscordBot.Commands.dll",
         };
 #endif
 

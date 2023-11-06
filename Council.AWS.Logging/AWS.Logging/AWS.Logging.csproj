@@ -4,8 +4,7 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <Authors>SuperNovaMVP Foundries</Authors>
-    <Description>https://github.com/SuperNovaMVPFoundries/SuperNovaMVP.AWS.Logging</Description>
+    <Authors>David Colclazier</Authors>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">

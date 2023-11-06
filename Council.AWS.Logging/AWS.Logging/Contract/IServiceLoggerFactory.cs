@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 
-namespace MVP.AWS.Logging.Contract
+namespace AWS.Logging.Contract
 {
     public interface IServiceLoggerFactory
     {

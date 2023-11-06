@@ -6,11 +6,11 @@ using System.Linq;
 using System;
 using System.Net;
 using MEF.NetCore;
-using MVP.AWS.Logging.Contract;
 using Amazon.Translate;
 using Amazon.Translate.Model;
 using System.Composition;
 using Council.DiscordBot.Core;
+using AWS.Logging.Contract;
 
 namespace Council.DiscordBot.Commands
 {
