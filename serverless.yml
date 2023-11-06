@@ -93,9 +93,6 @@ Resources:
           # Install aws-cli
           yum install -y aws-cli
 
-          export TOKENNAME=${TokenName}
-          export AWS_DEFAULT_REGION=${AWS::Region}
-          
           aws s3 cp s3://${ArtifactBucket}/${ArtifactKey} /tmp/${BotServiceName}.zip
           unzip /tmp/${BotServiceName}.zip -d /opt/${BotServiceName}/
           # Setup your bot as a service
@@ -105,6 +102,8 @@ Resources:
           After=network.target
         
           [Service]
+          Environment=TOKENNAME=${TokenName}
+          Environment=AWS_DEFAULT_REGION=${AWS::Region}
           WorkingDirectory=/opt/${BotServiceName}
           ExecStart=/usr/bin/dotnet /opt/${BotServiceName}/DiscordBot.Service.dll
           Restart=always
@@ -113,6 +112,7 @@ Resources:
           [Install]
           WantedBy=multi-user.target
           EOF
+          systemctl daemon-reload
           systemctl enable ${BotServiceName}
           systemctl start ${BotServiceName}
 
