@@ -77,7 +77,7 @@ public class TranslateService : ModuleBase<SocketCommandContext>
             var channel = await cacheableChannel.GetOrDownloadAsync();
             var user = reaction.User.IsSpecified ? reaction.User.Value : await channel.GetUserAsync(reaction.UserId);
             var textToTranslate = message.Content;
-
+            var nickname = user?.GlobalName ?? user?.Username;
             try
             {
                 // Perform translation
@@ -94,7 +94,7 @@ public class TranslateService : ModuleBase<SocketCommandContext>
                 if (result.HttpStatusCode == HttpStatusCode.OK)
                 {
                     var embedBuilder = new EmbedBuilder()
-                        .WithAuthor(user)
+                        .WithAuthor(nickname, user.GetAvatarUrl() ?? user.GetDefaultAvatarUrl())
                         .WithDescription(result.TranslatedText)
                         .WithColor(new Color(0, 255, 0)); // You can change the color
 
