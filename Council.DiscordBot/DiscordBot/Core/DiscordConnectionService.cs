@@ -83,7 +83,7 @@ namespace Council.DiscordBot.Core
             Client.MessageReceived += OnMessageReceived;
             
             Assembly.GetExecutingAssembly().GetTypes()
-                .SelectMany(type => type.GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic))
+                .SelectMany(type => type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
                 .Where(method => method.GetCustomAttribute<DiscordEventHandlerAttribute>() != null).ToList()
                 .ForEach(method =>
                 {
