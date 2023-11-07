@@ -67,16 +67,17 @@ public class TranslateService : ModuleBase<SocketCommandContext>
     };
 
 
-
     [DiscordEventHandler("ReactionAdded")]
-    public async Task OnReactionAddedAsync(Cacheable<IUserMessage, ulong> cacheableMessage, ISocketMessageChannel channel, SocketReaction reaction)
+    public async Task OnReactionAddedAsync(Cacheable<IUserMessage, ulong> cacheableMessage, Cacheable<IMessageChannel, ulong> cacheableChannel, SocketReaction reaction)
     {
         // Check if the reaction is a flag emoji and get the corresponding language code
         if (_emojiLanguageMap.TryGetValue(reaction.Emote.Name, out var languageCode))
         {
             var message = await cacheableMessage.GetOrDownloadAsync();
+            var channel = await cacheableChannel.GetOrDownloadAsync();
+            var user = reaction.User.IsSpecified ? reaction.User.Value : await channel.GetUserAsync(reaction.UserId);
             var textToTranslate = message.Content;
-            using var client = new AmazonTranslateClient();
+
             try
             {
                 // Perform translation
@@ -86,12 +87,18 @@ public class TranslateService : ModuleBase<SocketCommandContext>
                     TargetLanguageCode = languageCode,
                     SourceLanguageCode = "auto"
                 };
+                using var client = new AmazonTranslateClient();
                 var result = await client.TranslateTextAsync(translateRequest);
 
-                // Send the translated message
+                // Create the embed (card) with the translated text
                 if (result.HttpStatusCode == HttpStatusCode.OK)
                 {
-                    await channel.SendMessageAsync(result.TranslatedText);
+                    var embedBuilder = new EmbedBuilder()
+                        .WithAuthor(user)
+                        .WithDescription(result.TranslatedText)
+                        .WithColor(new Color(0, 255, 0)); // You can change the color
+
+                    await channel.SendMessageAsync(embed: embedBuilder.Build());
                 }
                 else
                 {
@@ -104,6 +111,7 @@ public class TranslateService : ModuleBase<SocketCommandContext>
             }
         }
     }
+
 
     public TranslateService()
     {
