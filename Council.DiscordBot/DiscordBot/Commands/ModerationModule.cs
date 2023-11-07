@@ -13,19 +13,28 @@ using Amazon.Comprehend.Model;
 using System.Collections.Generic;
 using Discord.WebSocket;
 using System.Threading;
+using System.Net;
+using System.Net.Http;
+using System.IO;
+using Amazon.Runtime.Internal.Util;
+using AWS.Logging;
+using System.Collections.ObjectModel;
 
 [DiscordCommand]
 public class ModerationModule : ModuleBase<SocketCommandContext>
 {
     private readonly string[] _offenseTypes = { "Tile Hitting", "Banner Burning", "Base Attacking" };
 
+
     [Command("strike")]
 
-    public async Task StrikeAsync([Remainder] string messageDetails)
+    public async Task StrikeAsync(SocketMessage arg)
     {
         var bucketName = Environment.GetEnvironmentVariable("EVIDENCE_BUCKET");
         var evidenceS3Urls = new List<string>();
 
+        var message = arg as SocketUserMessage;
+        var messageDetails = message?.Content ?? "";
 
         string playerId = null;
         string playerName = null;
@@ -51,12 +60,14 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         var offenseTypeInput = messageDetails.Split(' ').LastOrDefault();
         string offenseType = GetClosestOffenseType(offenseTypeInput);
 
-        if (Context.Message.Attachments.Any())
+        var incidentId = Guid.NewGuid().ToString();
+
+        if (message.Attachments.Any())
         {
             foreach (var attachment in Context.Message.Attachments)
             {
-                var s3Url = await UploadToS3(bucketName, attachment.Url);
-                evidenceS3Urls.Add(s3Url);
+                //var s3Url = await UploadToS3(bucketName, attachment.Url);
+                evidenceS3Urls.Add(attachment.Url);
             }
         }
         // If any information is missing, start an interactive dialogue
@@ -90,15 +101,26 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         if (!evidenceS3Urls.Any())
         {
             await ReplyAsync("Please provide evidence for the offense (links or attach files):");
-            // Logic for collecting and uploading evidence
+            evidenceS3Urls.AddRange(await GetAttachmentResponseAsync());
         }
 
 
         // Once evidence is provided, save all the collected data
         //SaveStrikeInformation(playerIdMatch.Value, playerNameMatch.Groups[1].Value, allianceMatch.Value, closestOffenseType, evidence);
 
-        await ReplyAsync("The offense has been registered. Thank you.");
-        await ReplyAsync($"DEBUG: [{allianceTag}] {playerName} ({playerId}) committed {offenseType} and {evidenceS3Urls.Count} pics/videos were collected as evidence.");
+        await ReplyAsync("The offense has not been registered (NOT IMPLEMENTED). But here's the data");
+        await ReplyAsync($"DEBUG{incidentId}: {allianceTag} {playerName} ({playerId}) committed {offenseType} and {evidenceS3Urls.Count} pics/videos were collected as evidence.");
+    }
+
+    private async Task<IEnumerable<string>> GetAttachmentResponseAsync()
+    {
+        var response = await NextMessageAsync();
+        if(response != null)
+        {
+            return response.Attachments.Select(s => s.Url);
+        }
+        await ReplyAsync("Didn't receive any attachments. Assuming you're finished. NOT IMPLEMENTED FULLY");
+        return new List<string>();
     }
     private async Task<string> GetInteractiveResponseAsync(string pattern, bool isOffenseType = false)
     {
@@ -203,21 +225,40 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         return translateResponse.TranslatedText;
     }
 
-    private async Task<string> UploadToS3(string bucketName, string fileUrl)
+    private async Task<string> UploadToS3(string incidentId, string bucketName, string fileName, string fileUrl)
     {
-        using var client = new AmazonS3Client();
-        var fileTransferUtility = new TransferUtility(client);
-
-        // Assuming fileUrl is a direct URL to the file
-        var fileName = fileUrl.Split('/').Last();
-        var uploadRequest = new TransferUtilityUploadRequest
+        
+        try
         {
-            BucketName = bucketName,
-            FilePath = fileUrl,
-            Key = fileName
-        };
+            using var client = new AmazonS3Client();
+            var fileTransferUtility = new TransferUtility(client);
 
+            // Download the file from Discord
+            byte[] fileData;
+            using var httpClient = new HttpClient();
+            fileData = await httpClient.GetByteArrayAsync(fileUrl);
+
+            // Assuming fileName is already provided correctly and does not need to be extracted from fileUrl
+            // Create the correct key with the incident_id prefix
+            var key = $"{incidentId}/{fileName}";
+
+            // Prepare the memory stream from the downloaded data
+            using var memoryStream = new MemoryStream(fileData);
+            var uploadRequest = new TransferUtilityUploadRequest
+            {
+                BucketName = bucketName,
+                InputStream = memoryStream,
+                Key = key
+            };
+        }
+        catch(Exception ex)
+        {
+            Logger.LogInfo
+        }
+        // Upload the file to S3
         await fileTransferUtility.UploadAsync(uploadRequest);
-        return $"https://{bucketName}.s3.amazonaws.com/{fileName}";
+
+        // Return the URL to the uploaded file
+        return $"https://{bucketName}.s3.amazonaws.com/{key}";
     }
 }
