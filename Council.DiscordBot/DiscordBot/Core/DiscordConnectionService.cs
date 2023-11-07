@@ -81,6 +81,26 @@ namespace Council.DiscordBot.Core
 
             var serviceCollection = new ServiceCollection().AddSingleton(Client).AddSingleton(Commands);
             Client.MessageReceived += OnMessageReceived;
+            
+            Assembly.GetExecutingAssembly().GetTypes()
+                .SelectMany(type => type.GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic))
+                .Where(method => method.GetCustomAttribute<DiscordEventHandlerAttribute>() != null).ToList()
+                .ForEach(method =>
+                {
+                    Logger.LogInformation($"Found Event to add...");
+                    var attribute = method.GetCustomAttribute<DiscordEventHandlerAttribute>();
+                    var eventInfo = Client.GetType().GetEvent(attribute.EventName);
+                    if (eventInfo != null)
+                    {
+                        Delegate handlerDelegate = method.CreateDelegate(eventInfo.EventHandlerType, null);
+                        eventInfo.AddEventHandler(Client, handlerDelegate);
+                        Logger.LogInformation($"Subscribed {method.Name} to DiscordSocketClient.{eventInfo.Name}");
+                    }
+                    else
+                    {
+                        Logger.LogWarning($"Could not find event '{attribute.EventName}' in DiscordSocketClient.");
+                    }
+                });
 
             foreach (var ass in _assemblyFactory.Assemblies().ToList())
             {
@@ -96,25 +116,7 @@ namespace Council.DiscordBot.Core
                        serviceCollection = serviceCollection.AddSingleton(s);
                    });
 
-                assembly.GetTypes()
-                    .SelectMany(type => type.GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic))
-                    .Where(method => method.GetCustomAttribute<DiscordEventHandlerAttribute>() != null)
-                    .ToList()
-                    .ForEach(method =>
-                    {
-                        var attribute = method.GetCustomAttribute<DiscordEventHandlerAttribute>();
-                        var eventInfo = Client.GetType().GetEvent(attribute.EventName);
-                        if (eventInfo != null)
-                        {
-                            Delegate handlerDelegate = method.CreateDelegate(eventInfo.EventHandlerType, null);
-                            eventInfo.AddEventHandler(Client, handlerDelegate);
-                            Logger.LogInformation($"Subscribed {method.Name} to DiscordSocketClient.{eventInfo.Name}");
-                        }
-                        else
-                        {
-                            Logger.LogWarning($"Could not find event '{attribute.EventName}' in DiscordSocketClient.");
-                        }
-                    });
+                
 
                 await Commands.AddModulesAsync(assembly, innerServiceCollection.BuildServiceProvider());
             }
