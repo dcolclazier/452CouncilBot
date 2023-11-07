@@ -81,19 +81,24 @@ namespace Council.DiscordBot.Core
 
             var serviceCollection = new ServiceCollection().AddSingleton(Client).AddSingleton(Commands);
             Client.MessageReceived += OnMessageReceived;
-            
             Assembly.GetExecutingAssembly().GetTypes()
                 .SelectMany(type => type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
-                .Where(method => method.GetCustomAttribute<DiscordEventHandlerAttribute>() != null).ToList()
+                .Where(method => method.GetCustomAttribute<DiscordEventHandlerAttribute>() != null)
+                .ToList()
                 .ForEach(method =>
                 {
-                    Logger.LogInformation($"Found Event to add...");
+                    Logger.LogInformation($"Found Event to add... {method.Name}");
                     var attribute = method.GetCustomAttribute<DiscordEventHandlerAttribute>();
+
                     var eventInfo = Client.GetType().GetEvent(attribute.EventName);
                     if (eventInfo != null)
                     {
-                        Delegate handlerDelegate = method.CreateDelegate(eventInfo.EventHandlerType, null);
-                        eventInfo.AddEventHandler(Client, handlerDelegate);
+                        // Subscribe to the event
+                        eventInfo.AddEventHandler(
+                            Client, 
+                            Delegate.CreateDelegate(eventInfo.EventHandlerType, Activator.CreateInstance(method.DeclaringType), 
+                            method.Name
+                        ));
                         Logger.LogInformation($"Subscribed {method.Name} to DiscordSocketClient.{eventInfo.Name}");
                     }
                     else
@@ -101,6 +106,7 @@ namespace Council.DiscordBot.Core
                         Logger.LogWarning($"Could not find event '{attribute.EventName}' in DiscordSocketClient.");
                     }
                 });
+
 
             foreach (var ass in _assemblyFactory.Assemblies().ToList())
             {
