@@ -250,15 +250,18 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
                 InputStream = memoryStream,
                 Key = key
             };
+            await fileTransferUtility.UploadAsync(uploadRequest);
+
+            // Return the URL to the uploaded file
+            return $"https://{bucketName}.s3.amazonaws.com/{key}";
         }
         catch(Exception ex)
         {
-            Logger.LogInfo
+            //need to implement logging
+            Console.WriteLine(ex.Message + ex.StackTrace);
+            return "";
         }
         // Upload the file to S3
-        await fileTransferUtility.UploadAsync(uploadRequest);
-
-        // Return the URL to the uploaded file
-        return $"https://{bucketName}.s3.amazonaws.com/{key}";
+        
     }
 }
