@@ -50,7 +50,8 @@ namespace Council.DiscordBot.Core
             {
                 CaseSensitiveCommands = true,
                 DefaultRunMode = RunMode.Async,
-                LogLevel = LogSeverity.Debug
+                LogLevel = LogSeverity.Debug,
+                IgnoreExtraArgs = true
             });
         }
 
