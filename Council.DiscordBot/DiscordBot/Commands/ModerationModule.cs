@@ -28,13 +28,13 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
 
     [Command("strike")]
 
-    public async Task StrikeAsync(SocketMessage arg)
+    public async Task StrikeAsync()
     {
         var bucketName = Environment.GetEnvironmentVariable("EVIDENCE_BUCKET");
         var evidenceS3Urls = new List<string>();
 
-        var message = arg as SocketUserMessage;
-        var messageDetails = message?.Content ?? "";
+        var messageDetails = Context.Message.Content;
+        
 
         string playerId = null;
         string playerName = null;
@@ -62,7 +62,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
 
         var incidentId = Guid.NewGuid().ToString();
 
-        if (message.Attachments.Any())
+        if (Context.Message.Attachments.Any())
         {
             foreach (var attachment in Context.Message.Attachments)
             {
