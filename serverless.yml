@@ -28,6 +28,9 @@ Parameters:
     Description: The name of the bot service.
     Type: String
     Default: discordbot
+  TestingIpAddress:
+    Description: Testing IP for dashboard access
+    Type: String
 
 Resources:
 
@@ -224,6 +227,13 @@ Resources:
               AWS: !Sub arn:aws:iam::${AWS::AccountId}:role/${EC2Role}
             Action: es:ESHttp*
             Resource: !Sub arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/council-es/*
+          - Effect: Allow
+            Principal:
+              AWS: '*'
+            Action: es:Http*
+            Contition:
+              IpAddress:
+                aws:SourceIP: !Ref TestingIpAddress
 Outputs:
   BotAutoScalingGroupName:
     Description: Auto Scaling Group Name for the Discord Bot
