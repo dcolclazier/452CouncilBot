@@ -133,7 +133,7 @@ Resources:
             systemctl daemon-reload
             systemctl enable ${BotServiceName}
             systemctl start ${BotServiceName}
-          - ESDomainEndpoint: !GetAtt ElasticsearchDomain.DomainEndpoint
+          - ESEndpoint: !GetAtt ElasticsearchDomain.DomainEndpoint
             BucketName: !Ref S3Bucket
 
   BotAutoScalingGroup:
