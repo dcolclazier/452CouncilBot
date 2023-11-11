@@ -22,19 +22,28 @@ using Amazon.SQS.Model;
 public class ModerationModule : ModuleBase<SocketCommandContext>
 {
     private readonly string[] _offenseTypes = { "Tile", "Banner", "Base", "Scout" };
-    private readonly ElasticClient _elasticClient;
+    private ElasticClient _elasticClient;
     private readonly string _evidenceBucketName = Environment.GetEnvironmentVariable("EVIDENCE_BUCKET");
     private readonly string _esEndpoint = Environment.GetEnvironmentVariable("ES_ENDPOINT");
-    public ModerationModule()
-    {
-        var settings = new ConnectionSettings(new Uri(_esEndpoint))
-            .DefaultIndex("players");
-        _elasticClient = new ElasticClient(settings);
-    }
 
     [Command("strike")]
     public async Task StrikeAsync()
     {
+        if(_elasticClient == null)
+        {
+            try
+            {
+                var settings = new ConnectionSettings(new Uri(_esEndpoint)).DefaultIndex("players");
+                _elasticClient = new ElasticClient(settings);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                Console.WriteLine(ex.StackTrace);
+            }
+        }
+
+
         var evidenceS3Urls = new List<string>();
 
         var messageDetails = Context.Message.Content;
