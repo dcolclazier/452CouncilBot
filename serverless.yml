@@ -121,7 +121,7 @@ Resources:
             Environment=TOKENNAME=${TokenName}
             Environment=AWS_DEFAULT_REGION=${AWS::Region}
             Environment=EVIDENCE_BUCKET=${BucketName}
-            Environment=ES_ENDPOINT=$(ESEndpoint)
+            Environment=ES_ENDPOINT=${ESEndpoint}
             WorkingDirectory=/opt/${BotServiceName}
             ExecStart=/usr/bin/dotnet /opt/${BotServiceName}/DiscordBot.Service.dll
             Restart=always
