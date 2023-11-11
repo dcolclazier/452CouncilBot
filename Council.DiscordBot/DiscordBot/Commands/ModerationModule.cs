@@ -113,8 +113,14 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         }
         if (!evidenceS3Urls.Any())
         {
-            await ReplyInSourceAsync(languageCode, "Please provide evidence for the offense (links or attach files) or 'no' to finish:");
+            await ReplyInSourceAsync(languageCode, "Please provide evidence for the offense (links or attach files) or 'no' to cancel:");
+            
             evidenceS3Urls.AddRange(await GetAttachmentResponseAsync());
+            if(evidenceS3Urls.Count == 0)
+            {
+                await ReplyInSourceAsync(languageCode, $"No evidence was provided, so this report will not be generated. Tip - try again with '!strike {playerId} {playerName} {allianceTag} {offenseType} This guy did something bad!' and attach evidence all in the same message!");
+                return;
+            }
         }
 
         var playerRecord = await CreateOrUpdatePlayerRecordAsync(_elasticClient, playerId, playerName, allianceTag);
@@ -134,8 +140,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         {
             await ReplyInSourceAsync(languageCode, "I couldn't copy evidence to backend storage - something went wrong. Please contact Barry!");
         }
-        // Once evidence is provided, save all the collected data
-        //SaveStrikeInformation(playerIdMatch.Value, playerNameMatch.Groups[1].Value, allianceMatch.Value, closestOffenseType, evidence);
+
 
         await ReplyInSourceAsync(languageCode, "The offense has possibly been registered (WORK IN PROGRESS). Here's the overview:");
         await ReplyAsync($"{incidentId}: {allianceTag} {playerName} ({playerId}) committed {offenseType} and {evidenceS3Urls.Count} pics/videos were collected as evidence.");
@@ -170,7 +175,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         }
         else
         {
-            await ReplyAsync("No more attachments. Got it!");
+            await ReplyAsync("No attachments. Got it!");
         }
         return new List<string>();
     }
