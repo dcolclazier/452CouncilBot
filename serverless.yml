@@ -231,7 +231,7 @@ Resources:
             Principal:
               AWS: '*'
             Action: es:Http*
-            Contition:
+            Condition:
               IpAddress:
                 aws:SourceIP: !Ref TestingIpAddress
 Outputs:
