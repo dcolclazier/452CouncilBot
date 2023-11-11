@@ -31,6 +31,12 @@ Parameters:
 
 Resources:
 
+  S3Bucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Sub '${AWS::StackName}-evidence-bucket'
+      VersioningConfiguration:
+        Status: Enabled
   EC2Role:
     Type: AWS::IAM::Role
     Properties:
@@ -48,6 +54,12 @@ Resources:
           PolicyDocument:
             Version: 2012-10-17
             Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource: !Sub 'arn:aws:s3:::${S3Bucket}/*'
               - Effect: Allow
                 Action:
                   - logs:*
@@ -79,42 +91,47 @@ Resources:
       SecurityGroups:
         - !GetAtt EC2SecurityGroup.GroupId
       UserData:
-        Fn::Base64: !Sub |
-          #!/bin/bash
-          yum update -y
-
-          rm -rf /usr/share/dotnet
-          rm -rf ~/.dotnet
-          rm -f /etc/profile.d/dotnet.sh
-          
-          sudo rpm -Uvh https://packages.microsoft.com/config/centos/7/packages-microsoft-prod.rpm
-          sudo yum install -y dotnet-sdk-7.0
-
-          # Install aws-cli
-          yum install -y aws-cli
-
-          aws s3 cp s3://${ArtifactBucket}/${ArtifactKey} /tmp/${BotServiceName}.zip
-          unzip /tmp/${BotServiceName}.zip -d /opt/${BotServiceName}/
-          # Setup your bot as a service
-          cat <<EOF > /etc/systemd/system/${BotServiceName}.service
-          [Unit]
-          Description=Discord Bot Service
-          After=network.target
-        
-          [Service]
-          Environment=TOKENNAME=${TokenName}
-          Environment=AWS_DEFAULT_REGION=${AWS::Region}
-          WorkingDirectory=/opt/${BotServiceName}
-          ExecStart=/usr/bin/dotnet /opt/${BotServiceName}/DiscordBot.Service.dll
-          Restart=always
-          SyslogIdentifier=${BotServiceName}
-        
-          [Install]
-          WantedBy=multi-user.target
-          EOF
-          systemctl daemon-reload
-          systemctl enable ${BotServiceName}
-          systemctl start ${BotServiceName}
+        Fn::Base64: !Sub
+          - |
+            #!/bin/bash
+            yum update -y
+            
+            rm -rf /usr/share/dotnet
+            rm -rf ~/.dotnet
+            rm -f /etc/profile.d/dotnet.sh
+            
+            sudo rpm -Uvh https://packages.microsoft.com/config/centos/7/packages-microsoft-prod.rpm
+            sudo yum install -y dotnet-sdk-7.0
+            
+            # Install aws-cli
+            yum install -y aws-cli
+            
+            aws s3 cp s3://${ArtifactBucket}/${ArtifactKey} /tmp/${BotServiceName}.zip
+            unzip /tmp/${BotServiceName}.zip -d /opt/${BotServiceName}/
+            # Setup your bot as a service
+            cat <<EOF > /etc/systemd/system/${BotServiceName}.service
+            [Unit]
+            Description=Discord Bot Service
+            After=network.target
+            
+            [Service]
+            Environment=TOKENNAME=${TokenName}
+            Environment=AWS_DEFAULT_REGION=${AWS::Region}
+            Environment=EVIDENCE_BUCKET=${BucketName}
+            Environment=ES_ENDPOINT=$(ESEndpoint)
+            WorkingDirectory=/opt/${BotServiceName}
+            ExecStart=/usr/bin/dotnet /opt/${BotServiceName}/DiscordBot.Service.dll
+            Restart=always
+            SyslogIdentifier=${BotServiceName}
+            
+            [Install]
+            WantedBy=multi-user.target
+            EOF
+            systemctl daemon-reload
+            systemctl enable ${BotServiceName}
+            systemctl start ${BotServiceName}
+          - ESDomainEndpoint: !GetAtt ElasticsearchDomain.DomainEndpoint
+            BucketName: !Ref S3Bucket
 
   BotAutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
