@@ -33,6 +33,8 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         {
             try
             {
+                Console.WriteLine("EVIDENCE BUCKET NAME: " + _evidenceBucketName + "  or " + Environment.GetEnvironmentVariable("EVIDENCE_BUCKET"));
+                Console.WriteLine("ES_ENDPOINT: " + _esEndpoint + "  or " + Environment.GetEnvironmentVariable("ES_ENDPOINT"));
                 var settings = new ConnectionSettings(new Uri(_esEndpoint)).DefaultIndex("players");
                 _elasticClient = new ElasticClient(settings);
             }
@@ -118,7 +120,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             evidenceS3Urls.AddRange(await GetAttachmentResponseAsync());
             if(evidenceS3Urls.Count == 0)
             {
-                await ReplyInSourceAsync(languageCode, $"No evidence was provided, so this report will not be generated. Tip - try again with '!strike {playerId} {playerName} {allianceTag} {offenseType} This guy did something bad!' and attach evidence all in the same message!");
+                await ReplyInSourceAsync(languageCode, $"No evidence was provided, so this report will not be generated. Tip - try again with '!strike {playerId} \'{playerName}\' {allianceTag} \"{offenseType}\" This guy did something bad!' and attach evidence all in the same message!");
                 return;
             }
         }
