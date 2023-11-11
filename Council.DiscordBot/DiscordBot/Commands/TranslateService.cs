@@ -61,6 +61,7 @@ public class TranslateService : ModuleBase<SocketCommandContext>
         {"🇻🇳", "vi"}, // Vietnamese
         {"🇨🇳", "zh"}, // Chinese Simplified
         {"🇹🇼", "zh-TW"}, // Chinese Traditional
+        {"🇵🇭", "tl" },
         // Additional languages without a country flag
         {"🇪🇺", "nl"}, // Dutch for European Union flag
         // ... Add any additional mappings as necessary
