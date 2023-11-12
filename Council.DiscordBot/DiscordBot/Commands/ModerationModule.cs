@@ -35,7 +35,9 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             {
                 Console.WriteLine("EVIDENCE BUCKET NAME: " + _evidenceBucketName + "  or " + Environment.GetEnvironmentVariable("EVIDENCE_BUCKET"));
                 Console.WriteLine("ES_ENDPOINT: " + _esEndpoint + "  or " + Environment.GetEnvironmentVariable("ES_ENDPOINT"));
-                var settings = new ConnectionSettings(new Uri($"https://{_esEndpoint}")).DefaultIndex("players");
+                var settings = new ConnectionSettings(new Uri($"https://{_esEndpoint}"))
+                    .DefaultIndex("players")
+                    .DisableDirectStreaming();
                 _elasticClient = new ElasticClient(settings);
             }
             catch (Exception ex)

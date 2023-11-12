@@ -77,7 +77,7 @@ Resources:
                 Resource: "*"
               - Effect: Allow
                 Action: es:*
-                Resource: !Sub arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/my-es-domain/*
+                Resource: !Sub arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/council-es/*
 
   EC2InstanceProfile:
     Type: AWS::IAM::InstanceProfile
@@ -226,11 +226,12 @@ Resources:
             Principal:
               AWS: !Sub arn:aws:iam::${AWS::AccountId}:role/${EC2Role}
             Action: es:ESHttp*
-            Resource: !Sub arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/council-es/*
+            Resource: !Sub arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/*
           - Effect: Allow
             Principal:
               AWS: '*'
-            Action: es:Http*
+            Action: es:ESHttp*
+            Resource: !Sub arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/*
             Condition:
               IpAddress:
                 aws:SourceIP: !Ref TestingIpAddress
