@@ -9,14 +9,15 @@ using AWS.Logging;
 using Newtonsoft.Json;
 using System.Collections.Generic;
 using DiscordBot.Core.Contract;
+using Council.DiscordBot.Core;
 
 namespace DiscordBot.Core
 {
 
     public class DiscordBotLocal : LoggingResource
     {
-        [Import]
-        private IConnectionService _connectionService { get; set; } 
+        //[Import]
+        private IConnectionService _connectionService { get; set; } = new DiscordConnectionService();
 
         public DiscordBotLocal() : base(nameof(DiscordBotLocal)) { }
 
@@ -30,7 +31,7 @@ namespace DiscordBot.Core
                 var waitHandle = new AutoResetEvent(false);
                 var token = await GetToken() ?? throw new NullReferenceException("Token was null... uh oh!");
                 Logger.LogInformation($"Connecting....");
-                await _connectionService.InitializeAsync(Client_Ready, token, 0, waitHandle);
+                await _connectionService.InitializeAsync(Client_Ready, token, 0, null);
 
                 waitHandle.WaitOne();
             }

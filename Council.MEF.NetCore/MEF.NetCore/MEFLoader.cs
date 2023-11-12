@@ -60,6 +60,7 @@ namespace MEF.NetCore
                     {
                         try
                         {
+                            Console.WriteLine("Trying to find exports from " + a);
                             var assembly = Assembly.LoadFrom(a);
 
                             var sharedExports = assembly

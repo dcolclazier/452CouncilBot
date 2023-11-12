@@ -32,8 +32,8 @@ namespace Council.DiscordBot.Core
     }
 
 
-    [Export(typeof(IConnectionService))]
-    [Shared]
+    //[Export(typeof(IConnectionService))]
+    //[Shared]
     public class DiscordConnectionService : LoggingResource, IConnectionService
     {
         public DiscordSocketClient Client { get; private set; }
@@ -51,7 +51,7 @@ namespace Council.DiscordBot.Core
         public DiscordConnectionService() : base(nameof(DiscordConnectionService))
         {
 
-            MEFLoader.SatisfyImportsOnce(this);
+            //MEFLoader.SatisfyImportsOnce(this);
 
             Client = new DiscordSocketClient(new DiscordSocketConfig
             {
