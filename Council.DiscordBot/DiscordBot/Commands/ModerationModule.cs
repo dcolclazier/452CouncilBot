@@ -529,6 +529,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             var player = response.Documents.First();
             // Fetch offenses related to the player
             var offenseResponse = await _elasticClient.SearchAsync<OffenseReport>(s => s
+                .Index("offense_reports")
                 .Query(q => q
                     .Match(m => m
                         .Field(f => f.playerId)

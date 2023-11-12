@@ -43,7 +43,7 @@ namespace Council.DiscordBot.Lambda
 
         }
 
-        public async Task Client_Ready() => await _connectionService.Client.SetGameAsync("whimsically chasing electrons...", type: Discord.ActivityType.CustomStatus);
+        public async Task Client_Ready() => await _connectionService.Client.SetGameAsync("whimsically with electrons...", type: Discord.ActivityType.Playing);
         
 
         public async Task<string> GetToken()
