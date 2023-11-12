@@ -24,6 +24,7 @@ using Amazon;
 using Discord;
 using Amazon.S3.Model;
 using System.Numerics;
+using Newtonsoft.Json;
 
 [DiscordCommand]
 public class ModerationModule : ModuleBase<SocketCommandContext>
@@ -376,8 +377,8 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
                 {
                     playerRecord.knownAlliances.Add(allianceTag);
                 }
-                playerRecord.currentName = playerName;
-                playerRecord.currentAlliance = allianceTag;
+                playerRecord.playerName = playerName;
+                playerRecord.playerAlliance = allianceTag;
             }
             else
             {
@@ -385,9 +386,9 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
                 playerRecord = new PlayerRecord
                 {
                     playerId = playerId,
-                    currentName = playerName,
+                    playerName = playerName,
                     knownNames = new List<string> { playerName },
-                    currentAlliance = allianceTag,
+                    playerAlliance = allianceTag,
                     knownAlliances = new List<string> { allianceTag },
                     offenseIds = new List<string>()
                 };
@@ -502,7 +503,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
                 .Size(1)
                 .Query(q => q
                     .Match(m => m
-                        .Field(f => f.currentName)
+                        .Field(f => f.playerName)
                         .Query(name)
                     )
                 )
@@ -518,12 +519,13 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             // Fetch offenses related to the player
             var offenseResponse = await _elasticClient.SearchAsync<OffenseReport>(s => s
                 .Query(q => q
-                    .Terms(t => t
+                    .Match(m => m
                         .Field(f => f.playerId)
-                        .Terms(player.offenseIds)
+                        .Query(player.playerId)
                     )
                 )
             );
+            Console.WriteLine(JsonConvert.SerializeObject(offenseResponse, Formatting.Indented));
             var embed = BuildPlayerEmbed(player, offenseResponse.Documents);
             await ReplyAsync(embed: embed.Build());
         }
@@ -540,24 +542,18 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
     {
         var embed = new EmbedBuilder
         {
-            Title = $"Player Information: {player.currentName}",
+            Title = $"Player Information: {player.playerAlliance} {player.playerName}  ({player.playerId})",
             Color = Color.Blue
         };
 
-        // Add player fields
-        embed.AddField("Player ID", player.playerId.ToString(), inline: true);
-        embed.AddField("Current Name", player.currentName, inline: true);
-        embed.AddField("Current Alliance", player.currentAlliance, inline: true);
-        embed.AddField("Known Names", player.knownNames, inline: true);
-        embed.AddField("Known Alliances", player.knownAlliances, inline: true);
-        // Add other player fields as needed...
-
+        embed.AddField("Known Names", string.Join(",",player.knownNames), inline: true);
+        embed.AddField("Known Alliances", string.Join(",",player.knownAlliances), inline: true);
         // Adding offenses
         if (offenses.Any())
         {
             foreach (var offense in offenses)
             {
-                embed.AddField($"Incident ID: {offense.offenseId}", $"Type: {offense.offenseType}, Date: {offense.date.ToShortDateString()}", inline: true);
+                embed.AddField($"{offense.date.ToShortDateString()}", $"{offense.offenseId}: {offense.offenseType}", inline: true);
             }
         }
         else
@@ -668,9 +664,9 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
     public class PlayerRecord
     {
         public string playerId { get; set; }
-        public string currentName { get; set; }
+        public string playerName { get; set; }
         public List<string> knownNames { get; set; }
-        public string currentAlliance { get; set; }
+        public string playerAlliance { get; set; }
         public List<string> knownAlliances { get; set; }
         public bool redFlag { get; set; }
         public string redFlagReason { get; set; }
