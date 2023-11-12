@@ -208,7 +208,7 @@ Resources:
     Type: AWS::OpenSearchService::Domain
     Properties:
       DomainName: council-es
-      EngineeVersion: Elasticsearch_7.12
+      EngineVersion: Elasticsearch_7.12
       EBSOptions:
         EBSEnabled: true
         VolumeSize: 10
