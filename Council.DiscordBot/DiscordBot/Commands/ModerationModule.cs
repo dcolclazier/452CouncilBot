@@ -555,22 +555,24 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             Title = $"Player Information: {player.playerAlliance} {player.playerName}  ({player.playerId})",
             Color = Color.Blue
         };
-        // ... add other player fields as needed
+
+        var redflag = new StringBuilder();
+        redflag.AppendLine($"{player.redFlag} - {player.redFlagReason}");
+        embed.AddField("Red Flag:", redflag.ToString());
 
         // Add offenses
         if (offenses.Any())
         {
             var incidents = new StringBuilder();
-            incidents.AppendLine("Incidents:");
             foreach (var offense in offenses)
             {
                 incidents.AppendLine($"{offense.date.ToString("MM/dd/yyyy")} - {offense.offenseType} - {offense.reportId}");
             }
-            embed.AddField("Offenses", incidents.ToString(), false);
+            embed.AddField("Incidents:", incidents.ToString(), false);
         }
         else
         {
-            embed.AddField("Offenses", "No offenses recorded", false);
+            embed.AddField("Incidents:", "No player offenses recorded", false);
         }
 
         // Set other embed properties as needed
