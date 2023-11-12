@@ -492,12 +492,14 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         var offenseResponse = await _elasticClient.SearchAsync<OffenseReport>(s => s
             .Index("offense_reports")
             .Query(q => q
-                .Terms(t => t
+                .Term(t => t
                     .Field(f => f.playerId)
-                    .Terms(player.offenseIds)
+                    .Value(player.playerId)
                 )
             )
         );
+
+        Console.WriteLine(JsonConvert.SerializeObject(offenseResponse, Formatting.Indented));
 
         var embed = BuildPlayerEmbed(player, offenseResponse.Documents);
         await ReplyAsync(embed: embed.Build());
