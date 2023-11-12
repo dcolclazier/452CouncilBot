@@ -26,6 +26,77 @@ using Amazon.S3.Model;
 using System.Numerics;
 using Newtonsoft.Json;
 using System.Text;
+using System.Composition;
+using AWS.Logging;
+using Microsoft.Extensions.Logging;
+
+public interface ILanguageService
+{
+    Task<string> DetectLanguageAsync(string text);
+    Task<string> TranslateTextAsync(string sourceText, string sourceLanguage, string targetLanguage);
+}
+
+[Export(typeof(ILanguageService))]
+public class AWSLanguageService : LoggingResource, ILanguageService
+{
+    protected AWSLanguageService() : base(nameof(AWSLanguageService)) { }
+
+    public async Task<string> DetectLanguageAsync(string text)
+    {
+        try
+        {
+            using var cliient = new AmazonComprehendClient();
+            var detectLanguageRequest = new DetectDominantLanguageRequest
+            {
+                Text = text
+            };
+            var detectLanguageResponse = await cliient.DetectDominantLanguageAsync(detectLanguageRequest);
+            return detectLanguageResponse.Languages.OrderByDescending(l => l.Score).FirstOrDefault()?.LanguageCode;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Error detecting language: {ex.Message} {ex.StackTrace}");
+            return "en";
+        }
+    }
+
+    public async Task<string> TranslateTextAsync(string text, string sourceLanguageCode, string targetLanguageCode)
+    {
+        try
+        {
+            using var client = new AmazonTranslateClient();
+            var translateRequest = new TranslateTextRequest
+            {
+                Text = text,
+                SourceLanguageCode = sourceLanguageCode,
+                TargetLanguageCode = targetLanguageCode
+            };
+            var translateResponse = await client.TranslateTextAsync(translateRequest);
+            return translateResponse.TranslatedText;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Error translating from {sourceLanguageCode} to {targetLanguageCode}: {ex.Message} {ex.StackTrace}");
+            return text;
+        }
+    }
+}
+
+public interface IEvidenceStorageService
+{
+    Task<List<string>> UploadEvidenceAsync(IEnumerable<string> evidenceUrls);
+}
+
+public interface IElasticsearchService
+{
+    Task<PlayerRecord> GetPlayerByIdAsync(string playerId);
+    Task<string> CreateOrUpdatePlayerAsync(PlayerRecord player);
+    Task<OffenseReport> GetOffenseReportByIdAsync(string reportId);
+    Task<string> CreateOffenseReportAsync(OffenseReport report);
+}
+
+
+
 
 [DiscordCommand]
 public class ModerationModule : ModuleBase<SocketCommandContext>
@@ -34,6 +105,9 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
     private ElasticClient _elasticClient;
     private readonly string _evidenceBucketName = Environment.GetEnvironmentVariable("EVIDENCE_BUCKET");
     private readonly string _esEndpoint = Environment.GetEnvironmentVariable("ES_ENDPOINT");
+
+    [Import]
+    private ILanguageService _translateService { get; set; }
 
     public ModerationModule()
     {
@@ -74,10 +148,10 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         // Language detection and translation logic
         var description = PreprocessMessageForLanguageDetection(messageDetails).Trim();
 
-        string languageCode = DetectLanguage(PreprocessMessageForLanguageDetection(description));
+        string languageCode = await _translateService.DetectLanguageAsync(PreprocessMessageForLanguageDetection(description));
         if (languageCode != "en") // Assuming English is the bot's primary language
         {
-            messageDetails = TranslateText(messageDetails, languageCode, "en");
+            messageDetails = await _translateService.TranslateTextAsync(messageDetails, languageCode, "en");
         }
 
         // Attempt to extract information from the initial message
@@ -252,7 +326,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         }
         else
         {
-            await ReplyAsync(TranslateText(englishResponse, "en", detectedLanguageCode));
+            await ReplyAsync(await _translateService.TranslateTextAsync(englishResponse, "en", detectedLanguageCode));
         }
 
     }
@@ -274,37 +348,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         return closestOffenseType?.Distance <= threshold ? closestOffenseType.OffenseType : null;
     }
 
-    private string DetectLanguage(string text)
-    {
-        using var cliient = new AmazonComprehendClient();
-        var detectLanguageRequest = new DetectDominantLanguageRequest
-        {
-            Text = text
-        };
-        var detectLanguageResponse = cliient.DetectDominantLanguageAsync(detectLanguageRequest).Result;
-        return detectLanguageResponse.Languages.OrderByDescending(l => l.Score).FirstOrDefault()?.LanguageCode;
-    }
-
-    private string TranslateText(string text, string sourceLanguageCode, string targetLanguageCode)
-    {
-        try
-        {
-            using var client = new AmazonTranslateClient();
-            var translateRequest = new TranslateTextRequest
-            {
-                Text = text,
-                SourceLanguageCode = sourceLanguageCode,
-                TargetLanguageCode = targetLanguageCode
-            };
-            var translateResponse = client.TranslateTextAsync(translateRequest).Result;
-            return translateResponse.TranslatedText;
-        }
-        catch (Exception)
-        {
-            //todo logging
-            return text;
-        }
-    }
+    
 
     private async Task<List<string>> CopyDiscordAttachmentsToS3Async(string incidentId, string bucketName, List<string> fileUrls)
     {
@@ -501,8 +545,8 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
 
         Console.WriteLine(JsonConvert.SerializeObject(offenseResponse, Formatting.Indented));
 
-        var embed = BuildPlayerEmbed(player, offenseResponse.Documents);
-        await ReplyAsync(embed: embed.Build());
+
+        await SendPlayerInfoAsync(player, offenseResponse.Documents);
     }
 
     [Command("player")]
@@ -537,9 +581,8 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
                     )
                 )
             );
-            Console.WriteLine(JsonConvert.SerializeObject(offenseResponse, Formatting.Indented));
-            var embed = BuildPlayerEmbed(player, offenseResponse.Documents);
-            await ReplyAsync(embed: embed.Build());
+
+            await SendPlayerInfoAsync(player, offenseResponse.Documents);
         }
         catch (Exception ex)
         {
@@ -552,11 +595,10 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
 
     private EmbedBuilder BuildPlayerEmbed(PlayerRecord player, IEnumerable<OffenseReport> offenses)
     {
-
         // Add player details to the embed
         var embed = new EmbedBuilder
         {
-            Title = $"Player Information: {player.playerAlliance} {player.playerName}  ({player.playerId})",
+            Title = $"Player Information: {player.playerAlliance} {player.playerName} ({player.playerId})",
             Color = Color.Blue
         };
 
@@ -579,11 +621,27 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             embed.AddField("Incidents:", "No player offenses recorded", false);
         }
 
-        // Set other embed properties as needed
-        embed.WithColor(Color.Blue); // Example color
-
         return embed;
     }
+    public async Task SendPlayerInfoAsync(PlayerRecord player, IEnumerable<OffenseReport> offenses)
+    {
+        var embed = BuildPlayerEmbed(player, offenses).Build();
+        var components = CreateReportButtons(offenses).Build();
+
+        await ReplyAsync(embed: embed, components: components);
+    }
+
+    // Method to create buttons for each offense report
+    private ComponentBuilder CreateReportButtons(IEnumerable<OffenseReport> offenses)
+    {
+        var componentBuilder = new ComponentBuilder();
+        foreach (var offense in offenses)
+        {
+            componentBuilder.WithButton("Get Report", $"get_report_{offense.reportId}", ButtonStyle.Primary);
+        }
+        return componentBuilder;
+    }
+
 
     [Command("offense")]
     public async Task GetOffenseReportByIdAsync(string reportId)
@@ -672,11 +730,9 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
     {
         var embed = new EmbedBuilder
         {
-            Title = $"Offense Report: {offense.reportId}",
+            Title = $"Offense Report: {offense.playerAlliance} {offense.playerName} ({offense.playerId})",
             Color = Color.Red
         };
-
-        embed.AddField("Player", $"{offense.playerAlliance} {offense.playerName} ({offense.playerId})", inline: true);
         embed.AddField("Incident ID", offense.reportId, inline: true);
         embed.AddField("Offense Type", offense.offenseType, inline: true);
         embed.AddField("Details", offense.reportDetails, inline: true);
@@ -685,27 +741,28 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
     }
 
 
-    public class PlayerRecord
-    {
-        public string playerId { get; set; }
-        public string playerName { get; set; }
-        public List<string> knownNames { get; set; }
-        public string playerAlliance { get; set; }
-        public List<string> knownAlliances { get; set; }
-        public bool redFlag { get; set; }
-        public string redFlagReason { get; set; }
-        public List<string> offenseIds { get; set; }
-    }
+    
+}
+public class PlayerRecord
+{
+    public string playerId { get; set; }
+    public string playerName { get; set; }
+    public List<string> knownNames { get; set; }
+    public string playerAlliance { get; set; }
+    public List<string> knownAlliances { get; set; }
+    public bool redFlag { get; set; }
+    public string redFlagReason { get; set; }
+    public List<string> offenseIds { get; set; }
+}
 
-    public class OffenseReport
-    {
-        public string reportId { get; set; }
-        public string playerId { get; set; }
-        public string playerName { get; set; }
-        public string playerAlliance { get; set; }
-        public string offenseType { get; set; }
-        public DateTime date { get; set; }
-        public List<string> evidenceUrls { get; set; }
-        public string reportDetails { get; set; }
-    }
+public class OffenseReport
+{
+    public string reportId { get; set; }
+    public string playerId { get; set; }
+    public string playerName { get; set; }
+    public string playerAlliance { get; set; }
+    public string offenseType { get; set; }
+    public DateTime date { get; set; }
+    public List<string> evidenceUrls { get; set; }
+    public string reportDetails { get; set; }
 }
