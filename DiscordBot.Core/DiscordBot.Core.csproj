@@ -8,12 +8,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="bin\**" />
-    <EmbeddedResource Remove="bin\**" />
-    <None Remove="bin\**" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="Amazon.Lambda.Serialization.Json" Version="2.1.1" />
     <PackageReference Include="AWSSDK.Comprehend" Version="3.7.200.64" />
     <PackageReference Include="AWSSDK.S3" Version="3.7.205.22" />
