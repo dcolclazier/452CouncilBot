@@ -4,12 +4,8 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Linq;
 using Council.DiscordBot.Core;
-using Amazon.Translate.Model;
 using Amazon.S3;
 using Amazon.S3.Transfer;
-using Amazon.Translate;
-using Amazon.Comprehend;
-using Amazon.Comprehend.Model;
 using System.Collections.Generic;
 using Discord.WebSocket;
 using System.Threading;
@@ -27,60 +23,6 @@ using System.Numerics;
 using Newtonsoft.Json;
 using System.Text;
 using System.Composition;
-using AWS.Logging;
-using Microsoft.Extensions.Logging;
-
-public interface ILanguageService
-{
-    Task<string> DetectLanguageAsync(string text);
-    Task<string> TranslateTextAsync(string sourceText, string sourceLanguage, string targetLanguage);
-}
-
-[Export(typeof(ILanguageService))]
-public class AWSLanguageService : LoggingResource, ILanguageService
-{
-    protected AWSLanguageService() : base(nameof(AWSLanguageService)) { }
-
-    public async Task<string> DetectLanguageAsync(string text)
-    {
-        try
-        {
-            using var cliient = new AmazonComprehendClient();
-            var detectLanguageRequest = new DetectDominantLanguageRequest
-            {
-                Text = text
-            };
-            var detectLanguageResponse = await cliient.DetectDominantLanguageAsync(detectLanguageRequest);
-            return detectLanguageResponse.Languages.OrderByDescending(l => l.Score).FirstOrDefault()?.LanguageCode;
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError($"Error detecting language: {ex.Message} {ex.StackTrace}");
-            return "en";
-        }
-    }
-
-    public async Task<string> TranslateTextAsync(string text, string sourceLanguageCode, string targetLanguageCode)
-    {
-        try
-        {
-            using var client = new AmazonTranslateClient();
-            var translateRequest = new TranslateTextRequest
-            {
-                Text = text,
-                SourceLanguageCode = sourceLanguageCode,
-                TargetLanguageCode = targetLanguageCode
-            };
-            var translateResponse = await client.TranslateTextAsync(translateRequest);
-            return translateResponse.TranslatedText;
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError($"Error translating from {sourceLanguageCode} to {targetLanguageCode}: {ex.Message} {ex.StackTrace}");
-            return text;
-        }
-    }
-}
 
 public interface IEvidenceStorageService
 {
@@ -93,6 +35,8 @@ public interface IElasticsearchService
     Task<string> CreateOrUpdatePlayerAsync(PlayerRecord player);
     Task<OffenseReport> GetOffenseReportByIdAsync(string reportId);
     Task<string> CreateOffenseReportAsync(OffenseReport report);
+
+    Task<ElasticClient> InitializeElasticsearchClientAsync(string defaultIndex);
 }
 
 
@@ -136,111 +80,122 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
     [Command("strike")]
     public async Task StrikeAsync()
     {
-        var evidenceS3Urls = new List<string>();
-
-        var messageDetails = Context.Message.Content;
-
-        string playerId = null;
-        string playerName = null;
-        string allianceTag = null;
-        string offenseType = null;
-
-        // Language detection and translation logic
-        var description = PreprocessMessageForLanguageDetection(messageDetails).Trim();
-
-        string languageCode = await _translateService.DetectLanguageAsync(PreprocessMessageForLanguageDetection(description));
-        if (languageCode != "en") // Assuming English is the bot's primary language
+        try
         {
-            messageDetails = await _translateService.TranslateTextAsync(messageDetails, languageCode, "en");
-        }
+            var evidenceS3Urls = new List<string>();
 
-        // Attempt to extract information from the initial message
-        var playerIdMatch = Regex.Match(messageDetails, @"\b\d{8,9}\b");
-        if (playerIdMatch.Success) playerId = playerIdMatch.Value;
+            var messageDetails = Context.Message.Content;
 
-        var playerNameMatch = Regex.Match(messageDetails, @"'([^']*)'");
-        if (playerNameMatch.Success) playerName = playerNameMatch.Groups[1].Value;
+            string playerId = null;
+            string playerName = null;
+            string allianceTag = null;
+            string offenseType = null;
 
-        var allianceMatch = Regex.Match(messageDetails, @"\[\w{3}\]");
-        if (allianceMatch.Success) allianceTag = allianceMatch.Value;
+            // Language detection and translation logic
+            var description = PreprocessMessageForLanguageDetection(messageDetails).Trim();
 
-        var offenseTypeInput = Regex.Match(messageDetails, "\"[^\"]*\"");
-        if (offenseTypeInput.Success) offenseType = GetClosestOffenseType(offenseTypeInput.Value);
-
-        if (Context.Message.Attachments.Any())
-        {
-            foreach (var attachment in Context.Message.Attachments)
+            string languageCode = await _translateService.DetectLanguageAsync(PreprocessMessageForLanguageDetection(description));
+            if (languageCode != "en") // Assuming English is the bot's primary language
             {
-                //var s3Url = await UploadToS3(bucketName, attachment.Url);
-                evidenceS3Urls.Add(attachment.Url);
+                messageDetails = await _translateService.TranslateTextAsync(messageDetails, languageCode, "en");
             }
-        }
-        // If any information is missing, start an interactive dialogue
-        if (playerId == null || playerName == null || allianceTag == null || offenseType == null || !evidenceS3Urls.Any())
-        {
-            await ReplyInSourceAsync(languageCode, "Some information is missing. Let's go through the details step by step.");
-        }
 
-        // Interactive dialogue to fill in missing information, looks like shit...
-        if (playerId == null)
-        {
-            await ReplyInSourceAsync(languageCode, "Please enter the Player ID:");
-            playerId = await GetInteractiveResponseAsync(@"\b\d{8,9}\b");
-        }
-        if (playerName == null)
-        {
-            await ReplyInSourceAsync(languageCode, "Please enter the Player's name, enclosed in single quotes:");
-            playerName = await GetInteractiveResponseAsync(@"'([^']*)'");
-            playerName = playerName?.Trim('\'');
-        }
-        if (allianceTag == null)
-        {
-            await ReplyInSourceAsync(languageCode, "Please enter the Alliance tag in the format [AAA]:");
-            allianceTag = await GetInteractiveResponseAsync(@"\[\w{3}\]");
-        }
-        if (offenseType == null)
-        {
-            await ReplyInSourceAsync(languageCode, $"Please enter the Offense Type (${string.Join(", ",_offenseTypes)}):");
-            offenseType = await GetInteractiveResponseAsync(string.Join("|", _offenseTypes), true); // Using fuzzy logic
-        }
+            // Attempt to extract information from the initial message
+            var playerIdMatch = Regex.Match(messageDetails, @"\b\d{8,9}\b");
+            if (playerIdMatch.Success) playerId = playerIdMatch.Value;
 
+            var playerNameMatch = Regex.Match(messageDetails, @"'([^']*)'");
+            if (playerNameMatch.Success) playerName = playerNameMatch.Groups[1].Value;
 
-        var message = evidenceS3Urls.Any()
-            ? "Would you like to provide any more evidence? Just say 'no' to finish."
-            : "Please provide evidence for the offense (links or attach files) or 'no' to cancel:";
-        
-        await ReplyInSourceAsync(languageCode, message);
-        evidenceS3Urls.AddRange(await GetAttachmentResponseAsync());
-        if (evidenceS3Urls.Count == 0)
-        {
-            await ReplyInSourceAsync(languageCode, $"No evidence was provided, so this report will not be generated. Tip - try again with '!strike {playerId} \'{playerName}\' {allianceTag} \"{offenseType}\" {description}' and attach evidence all in the same message!");
-            return;
-        }
+            var allianceMatch = Regex.Match(messageDetails, @"\[\w{3}\]");
+            if (allianceMatch.Success) allianceTag = allianceMatch.Value;
 
-        var playerRecord = await CreateOrUpdatePlayerRecordAsync(_elasticClient, playerId, playerName, allianceTag);
-        if (string.IsNullOrEmpty(playerRecord.playerId))
-        {
-            await ReplyInSourceAsync(languageCode, "I couldn't create a player record - something went wrong. Please contact Barry!");
-        }
+            var offenseTypeInput = Regex.Match(messageDetails, "\"[^\"]*\"");
+            if (offenseTypeInput.Success) offenseType = GetClosestOffenseType(offenseTypeInput.Value);
 
-        var fileUrls = await CopyDiscordAttachmentsToS3Async(Guid.NewGuid().ToString(), _evidenceBucketName, evidenceS3Urls);
-        if(fileUrls.Count != evidenceS3Urls.Count)
-        {
-            await ReplyInSourceAsync(languageCode, "I couldn't copy evidence to backend storage - something went wrong. Please contact Barry!");
-        }
+            if (Context.Message.Attachments.Any())
+            {
+                foreach (var attachment in Context.Message.Attachments)
+                {
+                    //var s3Url = await UploadToS3(bucketName, attachment.Url);
+                    evidenceS3Urls.Add(attachment.Url);
+                }
+            }
+            // If any information is missing, start an interactive dialogue
+            if (playerId == null || playerName == null || allianceTag == null || offenseType == null || !evidenceS3Urls.Any())
+            {
+                await ReplyInSourceAsync(languageCode, "Some information is missing. Let's go through the details step by step.");
+            }
 
-        var incidentId = await CreateOffenseReportAsync(_elasticClient, playerName, allianceTag, playerId, offenseType, fileUrls, description);
-        if (string.IsNullOrEmpty(incidentId))
-        {
-            await ReplyInSourceAsync(languageCode, "I couldn't upload the offense report - something went wrong. Please contact Barry!");
-        }
-
-        await UpdatePlayerOffenses(playerRecord.playerId, incidentId);
+            // Interactive dialogue to fill in missing information, looks like shit...
+            if (playerId == null)
+            {
+                await ReplyInSourceAsync(languageCode, "Please enter the Player ID:");
+                playerId = await GetInteractiveResponseAsync(@"\b\d{8,9}\b");
+            }
+            if (playerName == null)
+            {
+                await ReplyInSourceAsync(languageCode, "Please enter the Player's name, enclosed in single quotes:");
+                playerName = await GetInteractiveResponseAsync(@"'([^']*)'");
+                playerName = playerName?.Trim('\'');
+            }
+            if (allianceTag == null)
+            {
+                await ReplyInSourceAsync(languageCode, "Please enter the Alliance tag in the format [AAA]:");
+                allianceTag = await GetInteractiveResponseAsync(@"\[\w{3}\]");
+            }
+            if (offenseType == null)
+            {
+                await ReplyInSourceAsync(languageCode, $"Please enter the Offense Type (${string.Join(", ", _offenseTypes)}):");
+                offenseType = await GetInteractiveResponseAsync(string.Join("|", _offenseTypes), true); // Using fuzzy logic
+            }
 
 
-        await ReplyInSourceAsync(languageCode, "The offense has possibly been registered (WORK IN PROGRESS). Here's the overview:");
-        await ReplyAsync($"{incidentId}: {allianceTag} {playerName} ({playerId}) committed {offenseType} and {evidenceS3Urls.Count} pics/videos were collected as evidence.");
-        await ReplyAsync($"Description: {description}");
+            var message = evidenceS3Urls.Any()
+                ? "Would you like to provide any more evidence? Just say 'no' to finish."
+                : "Please provide evidence for the offense (links or attach files) or 'no' to cancel:";
+
+            await ReplyInSourceAsync(languageCode, message);
+            evidenceS3Urls.AddRange(await GetAttachmentResponseAsync());
+            if (evidenceS3Urls.Count == 0)
+            {
+                await ReplyInSourceAsync(languageCode, $"No evidence was provided, so this report will not be generated. Tip - try again with '!strike {playerId} \'{playerName}\' {allianceTag} \"{offenseType}\" {description}' and attach evidence all in the same message!");
+                return;
+            }
+
+            var playerRecord = await CreateOrUpdatePlayerRecordAsync(_elasticClient, playerId, playerName, allianceTag);
+            if (string.IsNullOrEmpty(playerRecord.playerId))
+            {
+                await ReplyInSourceAsync(languageCode, "I couldn't create a player record - something went wrong. Please contact Barry!");
+            }
+
+            var fileUrls = await CopyDiscordAttachmentsToS3Async(Guid.NewGuid().ToString(), _evidenceBucketName, evidenceS3Urls);
+            if (fileUrls.Count != evidenceS3Urls.Count)
+            {
+                await ReplyInSourceAsync(languageCode, "I couldn't copy evidence to backend storage - something went wrong. Please contact Barry!");
+            }
+
+            var incidentId = await CreateOffenseReportAsync(_elasticClient, playerName, allianceTag, playerId, offenseType, fileUrls, description);
+            if (string.IsNullOrEmpty(incidentId))
+            {
+                await ReplyInSourceAsync(languageCode, "I couldn't upload the offense report - something went wrong. Please contact Barry!");
+            }
+
+            await UpdatePlayerOffenses(playerRecord.playerId, incidentId);
+
+
+            await ReplyInSourceAsync(languageCode, "The offense has possibly been registered (WORK IN PROGRESS). Here's the overview:");
+            await ReplyAsync($"{incidentId}: {allianceTag} {playerName} ({playerId}) committed {offenseType} and {evidenceS3Urls.Count} pics/videos were collected as evidence.");
+            await ReplyAsync($"Description: {description}");
+        }
+        catch (Exception ex)
+        {
+            // Implement logging
+            Console.WriteLine(ex.Message + ex.StackTrace);
+            await ReplyAsync("Gross... I just swallowed a bug. GET IT OUT OF ME! ");
+            await ReplyAsync(ex.Message);
+            // Optionally, handle partial success if some files were uploaded before an error occurred
+        }
     }
     private string PreprocessMessageForLanguageDetection(string message)
     {
