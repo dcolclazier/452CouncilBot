@@ -33,34 +33,33 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
     private readonly string _evidenceBucketName = Environment.GetEnvironmentVariable("EVIDENCE_BUCKET");
     private readonly string _esEndpoint = Environment.GetEnvironmentVariable("ES_ENDPOINT");
 
+    public ModerationModule()
+    {
+        try
+        {
+            var httpConnection = new AwsHttpConnection(new Amazon.Extensions.NETCore.Setup.AWSOptions
+            {
+                Credentials = new InstanceProfileAWSCredentials(),
+                Region = RegionEndpoint.USWest2
+            });
+
+            var pool = new SingleNodeConnectionPool(new Uri($"https://{_esEndpoint}"));
+
+            var settings = new ConnectionSettings(pool, httpConnection)
+                .DefaultIndex("players")
+                .DisableDirectStreaming();
+            _elasticClient = new ElasticClient(settings);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+            Console.WriteLine(ex.StackTrace);
+        }
+    }
+
     [Command("strike")]
     public async Task StrikeAsync()
     {
-        if(_elasticClient == null)
-        {
-            try
-            {
-                var httpConnection = new AwsHttpConnection(new Amazon.Extensions.NETCore.Setup.AWSOptions
-                {
-                    Credentials = new InstanceProfileAWSCredentials(),
-                    Region = RegionEndpoint.USWest2
-                });
-
-                var pool = new SingleNodeConnectionPool(new Uri($"https://{_esEndpoint}"));
-
-                var settings = new ConnectionSettings(pool, httpConnection)
-                    .DefaultIndex("players")
-                    .DisableDirectStreaming();
-                _elasticClient = new ElasticClient(settings);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message);
-                Console.WriteLine(ex.StackTrace);
-            }
-        }
-
-
         var evidenceS3Urls = new List<string>();
 
         var messageDetails = Context.Message.Content;
@@ -128,16 +127,18 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             await ReplyInSourceAsync(languageCode, $"Please enter the Offense Type (${string.Join(", ",_offenseTypes)}):");
             offenseType = await GetInteractiveResponseAsync(string.Join("|", _offenseTypes), true); // Using fuzzy logic
         }
-        if (!evidenceS3Urls.Any())
+
+
+        var message = evidenceS3Urls.Any()
+            ? "Would you like to provide any more evidence? Just say 'no' to finish."
+            : "Please provide evidence for the offense (links or attach files) or 'no' to cancel:";
+        
+        await ReplyInSourceAsync(languageCode, message);
+        evidenceS3Urls.AddRange(await GetAttachmentResponseAsync());
+        if (evidenceS3Urls.Count == 0)
         {
-            await ReplyInSourceAsync(languageCode, "Please provide evidence for the offense (links or attach files) or 'no' to cancel:");
-            
-            evidenceS3Urls.AddRange(await GetAttachmentResponseAsync());
-            if(evidenceS3Urls.Count == 0)
-            {
-                await ReplyInSourceAsync(languageCode, $"No evidence was provided, so this report will not be generated. Tip - try again with '!strike {playerId} \'{playerName}\' {allianceTag} \"{offenseType}\" {description}' and attach evidence all in the same message!");
-                return;
-            }
+            await ReplyInSourceAsync(languageCode, $"No evidence was provided, so this report will not be generated. Tip - try again with '!strike {playerId} \'{playerName}\' {allianceTag} \"{offenseType}\" {description}' and attach evidence all in the same message!");
+            return;
         }
 
         var playerRecord = await CreateOrUpdatePlayerRecordAsync(_elasticClient, playerId, playerName, allianceTag);
@@ -165,21 +166,11 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
     }
     private string PreprocessMessageForLanguageDetection(string message)
     {
-        // Remove the command '!strike'
         message = Regex.Replace(message, @"!strike\s+", "", RegexOptions.IgnoreCase);
-
-        // Remove content in square brackets []
         message = Regex.Replace(message, @"\[\w+\]", "");
-
-        // Remove content in single quotes ''
         message = Regex.Replace(message, @"'[^']*'", "");
-
-        // Remove player ID pattern (assuming it's a sequence of 8 or 9 digits)
         message = Regex.Replace(message, @"\b\d{8,9}\b", "");
-
-        // Remove content in double quotes "" (for "burn_type")
         message = Regex.Replace(message, "\"[^\"]*\"", "");
-
         return message;
     }
 
@@ -196,6 +187,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         }
         return new List<string>();
     }
+
     private async Task<string> GetInteractiveResponseAsync(string pattern, bool isOffenseType = false)
     {
         var response = await NextMessageAsync();
