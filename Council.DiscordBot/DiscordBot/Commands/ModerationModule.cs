@@ -152,7 +152,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         var incidentId = await CreateOffenseReportAsync(_elasticClient, playerId, offenseType, fileUrls);
         if (string.IsNullOrEmpty(incidentId))
         {
-            await ReplyInSourceAsync(languageCode, "I couldn't copy evidence to backend storage - something went wrong. Please contact Barry!");
+            await ReplyInSourceAsync(languageCode, "I couldn't upload the offense report - something went wrong. Please contact Barry!");
         }
 
 
@@ -346,7 +346,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         {
             // Implement logging
             Console.WriteLine(ex.Message + ex.StackTrace);
-            await ReplyAsync("Gros... I just swallowed a bug. GET IT OUT OF ME! ");
+            await ReplyAsync("Gross... I just swallowed a bug. GET IT OUT OF ME! ");
             await ReplyAsync(ex.Message);
             // Optionally, handle partial success if some files were uploaded before an error occurred
         }
@@ -404,7 +404,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         catch (Exception ex)
         {
             Console.WriteLine(ex.Message + ex.StackTrace);
-            await ReplyAsync("Gros... I just swallowed a bug. GET IT OUT OF ME! ");
+            await ReplyAsync("Gross... I just swallowed a bug. GET IT OUT OF ME! ");
             await ReplyAsync(ex.Message);
             return new PlayerRecord();
         }
@@ -440,7 +440,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         {
             // Implement logging
             Console.WriteLine(ex.Message + ex.StackTrace);
-            await ReplyAsync("Gros... I just swallowed a bug. GET IT OUT OF ME! ");
+            await ReplyAsync("Gross... I just swallowed a bug. GET IT OUT OF ME! ");
             await ReplyAsync(ex.Message);
             return string.Empty;
         }
