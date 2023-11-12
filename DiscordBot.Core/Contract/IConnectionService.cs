@@ -11,7 +11,7 @@ namespace DiscordBot.Core.Contract
     {
         DiscordSocketClient Client { get; }
         CommandService Commands { get; }
-        ServiceProvider? Services { get; }
+        ServiceProvider Services { get; }
         bool PendingDisconnect { get; }
 
         Task InitializeAsync(Func<Task> OnReady, string token, int timeToRun, EventWaitHandle waitHandle);
