@@ -17,12 +17,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MEF.NetCore", "Council.MEF.
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AWS.Logging", "Council.AWS.Logging\AWS.Logging\AWS.Logging.csproj", "{1802EE8C-52D2-4FC5-887A-9405DB81C718}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "scripts", "scripts", "{161E8597-3284-48B6-B2F8-480A650042BA}"
-	ProjectSection(SolutionItems) = preProject
-		install_bot.sh = install_bot.sh
-		start_bot.sh = start_bot.sh
-		stop_bot.sh = stop_bot.sh
-	EndProjectSection
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DiscordBot.Core", "DiscordBot.Core\DiscordBot.Core.csproj", "{58474071-0D97-4F4B-82B2-4BCE4454DEB5}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -46,6 +41,10 @@ Global
 		{1802EE8C-52D2-4FC5-887A-9405DB81C718}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1802EE8C-52D2-4FC5-887A-9405DB81C718}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1802EE8C-52D2-4FC5-887A-9405DB81C718}.Release|Any CPU.Build.0 = Release|Any CPU
+		{58474071-0D97-4F4B-82B2-4BCE4454DEB5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{58474071-0D97-4F4B-82B2-4BCE4454DEB5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{58474071-0D97-4F4B-82B2-4BCE4454DEB5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{58474071-0D97-4F4B-82B2-4BCE4454DEB5}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

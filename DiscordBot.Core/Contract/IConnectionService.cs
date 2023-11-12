@@ -5,7 +5,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Council.DiscordBot.Contract
+namespace DiscordBot.Core.Contract
 {
     public interface IConnectionService
     {

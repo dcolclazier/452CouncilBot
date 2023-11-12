@@ -1,12 +1,10 @@
 using AWS.Logging;
-using Council.DiscordBot.Contract;
-using Microsoft.Extensions.Logging;
+using DiscordBot.Core.Contract;
 using System.Collections.Generic;
 using System.Composition;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Reflection.Metadata.Ecma335;
 
 namespace Council.DiscordBot.Core
 {

@@ -69,7 +69,7 @@ public class TranslateService : ModuleBase<SocketCommandContext>
 
 
     [DiscordEventHandler("ReactionAdded")]
-    public async Task OnReactionAddedAsync(Cacheable<IUserMessage, ulong> cacheableMessage, Cacheable<IMessageChannel, ulong> cacheableChannel, SocketReaction reaction)
+    public async Task OnFlagEmojiAdded(Cacheable<IUserMessage, ulong> cacheableMessage, Cacheable<IMessageChannel, ulong> cacheableChannel, SocketReaction reaction)
     {
         // Check if the reaction is a flag emoji and get the corresponding language code
         if (_emojiLanguageMap.TryGetValue(reaction.Emote.Name, out var languageCode))

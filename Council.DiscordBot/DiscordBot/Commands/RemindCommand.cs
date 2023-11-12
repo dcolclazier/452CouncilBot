@@ -1,7 +1,7 @@
 using Discord.Commands;
 using Discord;
 using System.Threading.Tasks;
-using Council.DiscordBot.Core;
+using DiscordBot.Core;
 
 namespace Council.DiscordBot.Commands
 {

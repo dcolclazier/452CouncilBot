@@ -3,7 +3,6 @@ using System;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Linq;
-using Council.DiscordBot.Core;
 using Amazon.S3;
 using Amazon.S3.Transfer;
 using System.Collections.Generic;
@@ -12,36 +11,18 @@ using System.Threading;
 using System.Net.Http;
 using System.IO;
 using Nest;
-using Amazon.SQS.Model;
 using Elasticsearch.Net;
 using Elasticsearch.Net.Aws;
 using Amazon.Runtime;
 using Amazon;
 using Discord;
 using Amazon.S3.Model;
-using System.Numerics;
 using Newtonsoft.Json;
 using System.Text;
 using System.Composition;
 using MEF.NetCore;
-
-public interface IEvidenceStorageService
-{
-    Task<List<string>> UploadEvidenceAsync(IEnumerable<string> evidenceUrls);
-}
-
-public interface IElasticsearchService
-{
-    Task<PlayerRecord> GetPlayerByIdAsync(string playerId);
-    Task<string> CreateOrUpdatePlayerAsync(PlayerRecord player);
-    Task<OffenseReport> GetOffenseReportByIdAsync(string reportId);
-    Task<string> CreateOffenseReportAsync(OffenseReport report);
-
-    Task<ElasticClient> InitializeElasticsearchClientAsync(string defaultIndex);
-}
-
-
-
+using DiscordBot.Core;
+using DiscordBot.Core.Contract;
 
 [DiscordCommand]
 public class ModerationModule : ModuleBase<SocketCommandContext>
@@ -97,7 +78,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             // Language detection and translation logic
             var description = PreprocessMessageForLanguageDetection(messageDetails).Trim();
 
-            string languageCode = await _translateService.DetectLanguageAsync(PreprocessMessageForLanguageDetection(description));
+            string languageCode = await _translateService.DetectLanguageAsync(description);
             if (languageCode != "en") // Assuming English is the bot's primary language
             {
                 messageDetails = await _translateService.TranslateTextAsync(messageDetails, languageCode, "en");
@@ -700,27 +681,4 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
 
 
     
-}
-public class PlayerRecord
-{
-    public string playerId { get; set; }
-    public string playerName { get; set; }
-    public List<string> knownNames { get; set; }
-    public string playerAlliance { get; set; }
-    public List<string> knownAlliances { get; set; }
-    public bool redFlag { get; set; }
-    public string redFlagReason { get; set; }
-    public List<string> offenseIds { get; set; }
-}
-
-public class OffenseReport
-{
-    public string reportId { get; set; }
-    public string playerId { get; set; }
-    public string playerName { get; set; }
-    public string playerAlliance { get; set; }
-    public string offenseType { get; set; }
-    public DateTime date { get; set; }
-    public List<string> evidenceUrls { get; set; }
-    public string reportDetails { get; set; }
 }

@@ -8,13 +8,14 @@ using Amazon.Comprehend.Model;
 using System.Composition;
 using AWS.Logging;
 using Microsoft.Extensions.Logging;
+using DiscordBot.Core.Contract;
 
 [Export(typeof(ILanguageService))]
 public class AWSLanguageService : LoggingResource, ILanguageService
 {
     protected AWSLanguageService() : base(nameof(AWSLanguageService)) { }
 
-    public async Task<string> DetectLanguageAsync(string text)
+    public async Task<string?> DetectLanguageAsync(string text)
     {
         try
         {

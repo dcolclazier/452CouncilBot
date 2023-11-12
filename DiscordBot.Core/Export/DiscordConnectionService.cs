@@ -13,7 +13,9 @@ using AWS.Logging;
 using MEF.NetCore;
 using Microsoft.Extensions.Logging;
 using System.Composition;
-using Council.DiscordBot.Contract;
+using DiscordBot.Core;
+using DiscordBot.Core.Contract;
+using Newtonsoft.Json;
 
 namespace Council.DiscordBot.Core
 {

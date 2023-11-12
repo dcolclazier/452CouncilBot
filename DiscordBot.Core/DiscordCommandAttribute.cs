@@ -1,6 +1,6 @@
 using System;
 
-namespace Council.DiscordBot.Core
+namespace DiscordBot.Core
 {
     public class DiscordCommandAttribute : Attribute { }
 

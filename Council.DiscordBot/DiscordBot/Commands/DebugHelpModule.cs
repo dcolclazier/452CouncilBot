@@ -4,7 +4,7 @@ using System.Linq;
 using System.Reflection;
 using Discord.Commands;
 using System.Threading.Tasks;
-using Council.DiscordBot.Core;
+using DiscordBot.Core;
 
 namespace Council.DiscordBot.Commands
 {

@@ -35,6 +35,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Council.AWS.Logging\AWS.Logging\AWS.Logging.csproj" />
+    <ProjectReference Include="..\..\DiscordBot.Core\DiscordBot.Core.csproj" />
   </ItemGroup>
 
 </Project>

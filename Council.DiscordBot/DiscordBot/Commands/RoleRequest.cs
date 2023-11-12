@@ -6,7 +6,7 @@ using System.Linq;
 using System;
 using System.Collections.Generic;
 using FuzzySharp;
-using Council.DiscordBot.Core;
+using DiscordBot.Core;
 
 namespace Council.DiscordBot.Commands
 {

@@ -1,12 +1,9 @@
 using System.Collections.Generic;
 
-namespace Council.DiscordBot.Contract
+namespace DiscordBot.Core.Contract
 {
     public interface IAssemblyFactory
     {
         IEnumerable<string> Assemblies();
     }
-
-
-
 }
