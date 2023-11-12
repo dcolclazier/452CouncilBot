@@ -593,7 +593,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
                     )
                 )
             );
-            await ReplyAsync(JsonConvert.SerializeObject(response, Formatting.Indented));
+            Console.WriteLine(JsonConvert.SerializeObject(response, Formatting.Indented));
 
             if (!response.Documents.Any())
             {
