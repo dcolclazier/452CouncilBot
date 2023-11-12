@@ -17,6 +17,10 @@ using System.Net.Http;
 using System.IO;
 using Nest;
 using Amazon.SQS.Model;
+using Elasticsearch.Net;
+using Elasticsearch.Net.Aws;
+using Amazon.Runtime;
+using Amazon;
 
 [DiscordCommand]
 public class ModerationModule : ModuleBase<SocketCommandContext>
@@ -33,9 +37,19 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         {
             try
             {
+
                 Console.WriteLine("EVIDENCE BUCKET NAME: " + _evidenceBucketName + "  or " + Environment.GetEnvironmentVariable("EVIDENCE_BUCKET"));
                 Console.WriteLine("ES_ENDPOINT: " + _esEndpoint + "  or " + Environment.GetEnvironmentVariable("ES_ENDPOINT"));
-                var settings = new ConnectionSettings(new Uri($"https://{_esEndpoint}"))
+
+                var httpConnection = new AwsHttpConnection(new Amazon.Extensions.NETCore.Setup.AWSOptions
+                {
+                    Credentials = new InstanceProfileAWSCredentials(),
+                    Region = RegionEndpoint.USWest2
+                });
+
+                var pool = new SingleNodeConnectionPool(new Uri("https://your-es-domain.region.es.amazonaws.com"));
+
+                var settings = new ConnectionSettings(pool, httpConnection)
                     .DefaultIndex("players")
                     .DisableDirectStreaming();
                 _elasticClient = new ElasticClient(settings);
