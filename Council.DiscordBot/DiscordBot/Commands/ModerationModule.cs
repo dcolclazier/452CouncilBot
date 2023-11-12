@@ -154,7 +154,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             await ReplyInSourceAsync(languageCode, "I couldn't copy evidence to backend storage - something went wrong. Please contact Barry!");
         }
 
-        var incidentId = await CreateOffenseReportAsync(_elasticClient, playerName, allianceTag, playerId, offenseType, fileUrls);
+        var incidentId = await CreateOffenseReportAsync(_elasticClient, playerName, allianceTag, playerId, offenseType, fileUrls, description);
         if (string.IsNullOrEmpty(incidentId))
         {
             await ReplyInSourceAsync(languageCode, "I couldn't upload the offense report - something went wrong. Please contact Barry!");
@@ -405,37 +405,41 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             return new PlayerRecord();
         }
     }
-    private async Task<string> CreateOffenseReportAsync(ElasticClient client, string playerName, string allianceTag, string playerId, string offenseType, List<string> evidenceUrls)
+    private async Task<string> CreateOffenseReportAsync(ElasticClient client, string playerName, string allianceTag, string playerId, string offenseType, List<string> evidenceUrls, string description)
     {
         try
         {
             var offenseReport = new OffenseReport
             {
-                // As before, do not set offenseId, let Elasticsearch/OpenSearch generate it
                 playerId = playerId,
                 playerName = playerName,
                 playerAlliance = allianceTag,
                 offenseType = offenseType,
                 date = DateTime.UtcNow,
                 evidenceUrls = evidenceUrls,
-                reportDetails = "Details about the offense..."
+                reportDetails = description
             };
 
-            // Use the IndexAsync method to specify the index name
-            var indexResponse = await client.IndexAsync(offenseReport, i => i
-                .Index("offense_reports")
-            );
+            var indexResponse = await client.IndexAsync(offenseReport, i => i.Index("offense_reports"));
 
             if (!indexResponse.IsValid)
             {
-                // Handle the error, log it, and/or throw an exception
                 throw new Exception("Failed to index offense report: " + indexResponse.DebugInformation);
             }
 
-            // Update player record with new offenseId
-            await UpdatePlayerOffenses(client, playerId, indexResponse.Id);
+            offenseReport.reportId = indexResponse.Id;
 
-            return indexResponse.Id; // Return the ID assigned by Elasticsearch
+            var updateResponse = await client.UpdateAsync<OffenseReport>(indexResponse.Id, u => u
+                .Index("offense_reports")
+                .Doc(offenseReport)
+            );
+
+            if (!updateResponse.IsValid)
+            {
+                throw new Exception("Failed to update offense report with offenseId: " + updateResponse.DebugInformation);
+            }
+
+            return indexResponse.Id; 
         }
         catch (Exception ex)
         {
@@ -446,6 +450,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             return string.Empty;
         }
     }
+
 
     private async Task UpdatePlayerOffenses(ElasticClient client, string playerId, string offenseId)
     {
@@ -553,7 +558,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         {
             foreach (var offense in offenses)
             {
-                embed.AddField($"{offense.date.ToShortDateString()}", $"{offense.offenseId}: {offense.offenseType}", inline: true);
+                embed.AddField($"{offense.date.ToShortDateString()}", $"{offense.reportId}: {offense.offenseType}", inline: true);
             }
         }
         else
@@ -572,7 +577,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             var response = await _elasticClient.SearchAsync<OffenseReport>(s => s
                 .Query(q => q
                     .Term(t => t
-                        .Field(f => f.offenseId)
+                        .Field(f => f.reportId)
                         .Value(offenseId)
                     )
                 )
@@ -648,12 +653,12 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
     {
         var embed = new EmbedBuilder
         {
-            Title = $"Offense Report: {offense.offenseId}",
+            Title = $"Offense Report: {offense.reportId}",
             Color = Color.Red
         };
 
         embed.AddField("Player", $"{offense.playerAlliance} {offense.playerName} ({offense.playerId})", inline: true);
-        embed.AddField("Incident ID", offense.offenseId, inline: true);
+        embed.AddField("Incident ID", offense.reportId, inline: true);
         embed.AddField("Offense Type", offense.offenseType, inline: true);
         embed.AddField("Details", offense.reportDetails, inline: true);
         
@@ -675,7 +680,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
 
     public class OffenseReport
     {
-        public string offenseId { get; set; }
+        public string reportId { get; set; }
         public string playerId { get; set; }
         public string playerName { get; set; }
         public string playerAlliance { get; set; }
