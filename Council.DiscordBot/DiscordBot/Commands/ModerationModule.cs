@@ -504,34 +504,44 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
     [Command("player")]
     public async Task GetPlayerByNameAsync(string name)
     {
-        var response = await _elasticClient.SearchAsync<PlayerRecord>(s => s
-            .Size(1)
-            .Query(q => q
-                .Match(m => m
-                    .Field(f => f.currentName)
-                    .Query(name)
-                )
-            )
-        );
-        
-
-        if (!response.Documents.Any())
+        try
         {
-            await ReplyAsync("No players found with a name close to that.");
-            return;
-        }
-        var player = response.Documents.First();
-        // Fetch offenses related to the player
-        var offenseResponse = await _elasticClient.SearchAsync<OffenseReport>(s => s
-            .Query(q => q
-                .Terms(t => t
-                    .Field(f => f.playerId)
-                    .Terms(player.offenseIds)
+            var response = await _elasticClient.SearchAsync<PlayerRecord>(s => s
+                .Size(1)
+                .Query(q => q
+                    .Match(m => m
+                        .Field(f => f.currentName)
+                        .Query(name)
+                    )
                 )
-            )
-        );
-        var embed = BuildPlayerEmbed(player, offenseResponse.Documents);
-        await ReplyAsync(embed: embed.Build());
+            );
+
+
+            if (!response.Documents.Any())
+            {
+                await ReplyAsync("No players found with a name close to that.");
+                return;
+            }
+            var player = response.Documents.First();
+            // Fetch offenses related to the player
+            var offenseResponse = await _elasticClient.SearchAsync<OffenseReport>(s => s
+                .Query(q => q
+                    .Terms(t => t
+                        .Field(f => f.playerId)
+                        .Terms(player.offenseIds)
+                    )
+                )
+            );
+            var embed = BuildPlayerEmbed(player, offenseResponse.Documents);
+            await ReplyAsync(embed: embed.Build());
+        }
+        catch (Exception ex)
+        {
+            // Implement logging
+            Console.WriteLine(ex.Message + ex.StackTrace);
+            await ReplyAsync("Gross... I just swallowed a bug. GET IT OUT OF ME!");
+            await ReplyAsync(ex.Message);
+        }
     }
 
     private EmbedBuilder BuildPlayerEmbed(PlayerRecord player, IEnumerable<OffenseReport> offenses)
@@ -568,40 +578,50 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
     [Command("offense")]
     public async Task GetOffenseReportByIdAsync(string offenseId)
     {
-        // Fetch offense report
-        var response = await _elasticClient.SearchAsync<OffenseReport>(s => s
-            .Query(q => q
-                .Term(t => t
-                    .Field(f => f.offenseId)
-                    .Value(offenseId)
+        try
+        {
+            // Fetch offense report
+            var response = await _elasticClient.SearchAsync<OffenseReport>(s => s
+                .Query(q => q
+                    .Term(t => t
+                        .Field(f => f.offenseId)
+                        .Value(offenseId)
+                    )
                 )
-            )
-        );
+            );
 
-        if (!response.Documents.Any())
-        {
-            await ReplyAsync("No offense report found with that ID.");
-            return;
-        }
-
-        var offenseReport = response.Documents.First();
-
-        // Prepare the embed
-        var embed = BuildOffenseReportEmbed(offenseReport);
-
-        // Download evidence files and prepare attachments
-        var attachments = new List<FileAttachment>();
-        foreach (var url in offenseReport.evidenceUrls)
-        {
-            var file = await DownloadFileAsync(url);
-            if (file != null)
+            if (!response.Documents.Any())
             {
-                attachments.Add((FileAttachment)file);
+                await ReplyAsync("No offense report found with that ID.");
+                return;
             }
-        }
 
-        // Send the message with embed and attachments
-        await Context.Channel.SendFilesAsync(attachments, embed: embed.Build());
+            var offenseReport = response.Documents.First();
+
+            // Prepare the embed
+            var embed = BuildOffenseReportEmbed(offenseReport);
+
+            // Download evidence files and prepare attachments
+            var attachments = new List<FileAttachment>();
+            foreach (var url in offenseReport.evidenceUrls)
+            {
+                var file = await DownloadFileAsync(url);
+                if (file != null)
+                {
+                    attachments.Add((FileAttachment)file);
+                }
+            }
+
+            // Send the message with embed and attachments
+            await Context.Channel.SendFilesAsync(attachments, embed: embed.Build());
+        }
+        catch (Exception ex)
+        {
+            // Implement logging
+            Console.WriteLine(ex.Message + ex.StackTrace);
+            await ReplyAsync("Gross... I just swallowed a bug. GET IT OUT OF ME!");
+            await ReplyAsync(ex.Message);
+        }
     }
 
     private async Task<FileAttachment?> DownloadFileAsync(string url)
