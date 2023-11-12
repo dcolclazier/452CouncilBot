@@ -16,7 +16,7 @@ namespace DiscordBot.Core
     public class DiscordBotLocal : LoggingResource
     {
         [Import]
-        private IConnectionService _connectionService { get; set; } = null;
+        private IConnectionService _connectionService { get; set; } 
 
         public DiscordBotLocal() : base(nameof(DiscordBotLocal)) { }
 
@@ -30,7 +30,7 @@ namespace DiscordBot.Core
                 var waitHandle = new AutoResetEvent(false);
                 var token = await GetToken() ?? throw new NullReferenceException("Token was null... uh oh!");
                 Logger.LogInformation($"Connecting....");
-                await _connectionService.InitializeAsync(Client_Ready, token, 0, null);
+                await _connectionService.InitializeAsync(Client_Ready, token, 0, waitHandle);
 
                 waitHandle.WaitOne();
             }
@@ -46,7 +46,7 @@ namespace DiscordBot.Core
         public async Task Client_Ready() => await _connectionService.Client.SetGameAsync("whimsically with electrons...", type: Discord.ActivityType.Playing);
 
 
-        public async Task<string> GetToken()
+        public async Task<string?> GetToken()
         {
             string secretName = Environment.GetEnvironmentVariable("TOKENNAME");
             string region = Environment.GetEnvironmentVariable("AWS_DEFAULT_REGION");
@@ -58,14 +58,14 @@ namespace DiscordBot.Core
                 SecretId = secretName
             };
 
-            GetSecretValueResponse response = null;
+            GetSecretValueResponse response;
             try
             {
                 response = await client.GetSecretValueAsync(request);
                 if (response.SecretString != null)
                 {
                     var parsedSecrets = JsonConvert.DeserializeObject<Dictionary<string, string>>(response.SecretString);
-                    if (parsedSecrets.ContainsKey("Token"))
+                    if (parsedSecrets != null && parsedSecrets.ContainsKey("Token"))
                     {
                         return parsedSecrets["Token"];
                     }

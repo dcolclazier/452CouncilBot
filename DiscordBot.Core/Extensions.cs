@@ -23,7 +23,7 @@ namespace Council.DiscordBot
         private static void ConcatMessages(Exception ex, ref StringBuilder Messages, string delimiter)
         {
             if (ex == null || Messages == null) return;
-            if (ex.InnerException == null)
+            if (ex.InnerException != null)
                 ConcatMessages(ex.InnerException, ref Messages, delimiter);
 
             if (!string.IsNullOrWhiteSpace(ex.Message))
@@ -74,7 +74,7 @@ namespace Council.DiscordBot
             return decimal.TryParse(o?.ToString(), out var r) ? (decimal?)r : null;
         }
 
-        public static T CastOrDefault<T>(this object o)
+        public static T? CastOrDefault<T>(this object o) where T: class
         {
             try
             {

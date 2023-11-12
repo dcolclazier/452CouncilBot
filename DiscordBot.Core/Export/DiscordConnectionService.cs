@@ -38,13 +38,13 @@ namespace Council.DiscordBot.Core
     {
         public DiscordSocketClient Client { get; private set; }
         public CommandService Commands { get; private set; }
-        public ServiceProvider Services { get; private set; }
+        public ServiceProvider? Services { get; private set; }
 
 
-        private Timer _timer;
-        private EventWaitHandle _waitHandle;
+        private Timer? _timer;
+        private EventWaitHandle? _waitHandle;
 
-        [Import] private IAssemblyFactory _assemblyFactory { get; set; } = null;
+        [Import] private IAssemblyFactory _assemblyFactory { get; set; }
         public bool PendingDisconnect { get; private set; }
 
 

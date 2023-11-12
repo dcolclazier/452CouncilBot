@@ -3,12 +3,12 @@ using System.Collections.Generic;
 
 public class OffenseReport
 {
-    public string reportId { get; set; }
-    public string playerId { get; set; }
-    public string playerName { get; set; }
-    public string playerAlliance { get; set; }
-    public string offenseType { get; set; }
-    public DateTime date { get; set; }
-    public List<string> evidenceUrls { get; set; }
-    public string reportDetails { get; set; }
+    public string reportId { get; set; } = string.Empty;
+    public string playerId { get; set; } = string.Empty;
+    public string playerName { get; set; } = string.Empty;
+    public string playerAlliance { get; set; } = string.Empty;
+    public string offenseType { get; set; } = string.Empty;
+    public DateTime date { get; set; } = DateTime.MinValue;
+    public List<string> evidenceUrls { get; set; } = new List<string>();
+    public string reportDetails { get; set; } = string.Empty;
 }
