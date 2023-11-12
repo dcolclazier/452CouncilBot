@@ -33,7 +33,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
     private readonly string _esEndpoint = Environment.GetEnvironmentVariable("ES_ENDPOINT");
 
     [Import]
-    private ILanguageService _translateService { get; set; }
+    public ILanguageService _translateService { get; set; }
 
     public ModerationModule()
     {
