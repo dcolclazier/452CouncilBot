@@ -490,6 +490,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
 
         // Fetch offenses related to the player
         var offenseResponse = await _elasticClient.SearchAsync<OffenseReport>(s => s
+            .Index("offense_reports")
             .Query(q => q
                 .Terms(t => t
                     .Field(f => f.playerId)
@@ -588,6 +589,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         {
             // Fetch offense report
             var response = await _elasticClient.SearchAsync<OffenseReport>(s => s
+                .Index("offense_reports")
                 .Query(q => q
                     .Term(t => t
                         .Field(f => f.reportId)
