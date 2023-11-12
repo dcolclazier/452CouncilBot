@@ -21,6 +21,9 @@ using Elasticsearch.Net;
 using Elasticsearch.Net.Aws;
 using Amazon.Runtime;
 using Amazon;
+using Discord;
+using Amazon.S3.Model;
+using System.Numerics;
 
 [DiscordCommand]
 public class ModerationModule : ModuleBase<SocketCommandContext>
@@ -149,7 +152,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             await ReplyInSourceAsync(languageCode, "I couldn't copy evidence to backend storage - something went wrong. Please contact Barry!");
         }
 
-        var incidentId = await CreateOffenseReportAsync(_elasticClient, playerId, offenseType, fileUrls);
+        var incidentId = await CreateOffenseReportAsync(_elasticClient, playerName, allianceTag, playerId, offenseType, fileUrls);
         if (string.IsNullOrEmpty(incidentId))
         {
             await ReplyInSourceAsync(languageCode, "I couldn't upload the offense report - something went wrong. Please contact Barry!");
@@ -409,21 +412,26 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             return new PlayerRecord();
         }
     }
-    private async Task<string> CreateOffenseReportAsync(ElasticClient client, string playerId, string offenseType, List<string> evidenceUrls)
+    private async Task<string> CreateOffenseReportAsync(ElasticClient client, string playerName, string allianceTag, string playerId, string offenseType, List<string> evidenceUrls)
     {
         try
         {
             var offenseReport = new OffenseReport
             {
-                // Remove the offenseId line, let ES generate the ID
+                // As before, do not set offenseId, let Elasticsearch/OpenSearch generate it
                 playerId = playerId,
+                playerName = playerName,
+                playerAlliance = allianceTag,
                 offenseType = offenseType,
                 date = DateTime.UtcNow,
                 evidenceUrls = evidenceUrls,
                 reportDetails = "Details about the offense..."
             };
 
-            var indexResponse = await client.IndexDocumentAsync(offenseReport);
+            // Use the IndexAsync method to specify the index name
+            var indexResponse = await client.IndexAsync(offenseReport, i => i
+                .Index("offense_reports")
+            );
 
             if (!indexResponse.IsValid)
             {
@@ -440,7 +448,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         {
             // Implement logging
             Console.WriteLine(ex.Message + ex.StackTrace);
-            await ReplyAsync("Gross... I just swallowed a bug. GET IT OUT OF ME! ");
+            await ReplyAsync("Gross... I just swallowed a bug. GET IT OUT OF ME!");
             await ReplyAsync(ex.Message);
             return string.Empty;
         }
@@ -449,6 +457,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
     private async Task UpdatePlayerOffenses(ElasticClient client, string playerId, string offenseId)
     {
         var updateResponse = await client.UpdateAsync<PlayerRecord, object>(playerId, u => u
+            .Index("offense_reports")
             .Script(s => s
                 .Source("ctx._source.offenseIds.add(params.offenseId)")
                 .Params(p => p
@@ -457,6 +466,192 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             )
         );
     }
+    [Command("player")]
+    public async Task GetPlayerByIdAsync(int playerId)
+    {
+        // Fetch player information
+        var playerResponse = await _elasticClient.SearchAsync<PlayerRecord>(s => s
+            .Query(q => q
+                .Term(t => t
+                    .Field(f => f.playerId)
+                    .Value(playerId)
+                )
+            )
+        );
+
+        if (!playerResponse.Documents.Any())
+        {
+            await ReplyAsync("No player found with that ID.");
+            return;
+        }
+
+        var player = playerResponse.Documents.First();
+
+        // Fetch offenses related to the player
+        var offenseResponse = await _elasticClient.SearchAsync<OffenseReport>(s => s
+            .Query(q => q
+                .Terms(t => t
+                    .Field(f => f.playerId)
+                    .Terms(player.offenseIds)
+                )
+            )
+        );
+
+        var embed = BuildPlayerEmbed(player, offenseResponse.Documents);
+        await ReplyAsync(embed: embed.Build());
+    }
+
+    [Command("player")]
+    public async Task GetPlayerByNameAsync(string name)
+    {
+        var response = await _elasticClient.SearchAsync<PlayerRecord>(s => s
+            .Size(1)
+            .Query(q => q
+                .Match(m => m
+                    .Field(f => f.currentName)
+                    .Query(name)
+                )
+            )
+        );
+        
+
+        if (!response.Documents.Any())
+        {
+            await ReplyAsync("No players found with a name close to that.");
+            return;
+        }
+        var player = response.Documents.First();
+        // Fetch offenses related to the player
+        var offenseResponse = await _elasticClient.SearchAsync<OffenseReport>(s => s
+            .Query(q => q
+                .Terms(t => t
+                    .Field(f => f.playerId)
+                    .Terms(player.offenseIds)
+                )
+            )
+        );
+        var embed = BuildPlayerEmbed(player, offenseResponse.Documents);
+        await ReplyAsync(embed: embed.Build());
+    }
+
+    private EmbedBuilder BuildPlayerEmbed(PlayerRecord player, IEnumerable<OffenseReport> offenses)
+    {
+        var embed = new EmbedBuilder
+        {
+            Title = $"Player Information: {player.currentName}",
+            Color = Color.Blue
+        };
+
+        // Add player fields
+        embed.AddField("Player ID", player.playerId.ToString(), inline: true);
+        embed.AddField("Current Name", player.currentName, inline: true);
+        embed.AddField("Current Alliance", player.currentAlliance, inline: true);
+        embed.AddField("Known Names", player.knownNames, inline: true);
+        embed.AddField("Known Alliances", player.knownAlliances, inline: true);
+        // Add other player fields as needed...
+
+        // Adding offenses
+        if (offenses.Any())
+        {
+            foreach (var offense in offenses)
+            {
+                embed.AddField($"Incident ID: {offense.offenseId}", $"Type: {offense.offenseType}, Date: {offense.date.ToShortDateString()}", inline: true);
+            }
+        }
+        else
+        {
+            embed.AddField("Offenses", "No offenses recorded.");
+        }
+
+        return embed;
+    }
+    [Command("offense")]
+    public async Task GetOffenseReportByIdAsync(string offenseId)
+    {
+        // Fetch offense report
+        var response = await _elasticClient.SearchAsync<OffenseReport>(s => s
+            .Query(q => q
+                .Term(t => t
+                    .Field(f => f.offenseId)
+                    .Value(offenseId)
+                )
+            )
+        );
+
+        if (!response.Documents.Any())
+        {
+            await ReplyAsync("No offense report found with that ID.");
+            return;
+        }
+
+        var offenseReport = response.Documents.First();
+
+        // Prepare the embed
+        var embed = BuildOffenseReportEmbed(offenseReport);
+
+        // Download evidence files and prepare attachments
+        var attachments = new List<FileAttachment>();
+        foreach (var url in offenseReport.evidenceUrls)
+        {
+            var file = await DownloadFileAsync(url);
+            if (file != null)
+            {
+                attachments.Add((FileAttachment)file);
+            }
+        }
+
+        // Send the message with embed and attachments
+        await Context.Channel.SendFilesAsync(attachments, embed: embed.Build());
+    }
+
+    private async Task<FileAttachment?> DownloadFileAsync(string url)
+    {
+        try
+        {
+            var uri = new Uri(url);
+            var bucketName = uri.Host.Split('.')[0];
+            var key = uri.AbsolutePath.Substring(1); // Remove the leading '/'
+
+            using (var client = new AmazonS3Client())
+            {
+                var request = new GetObjectRequest
+                {
+                    BucketName = bucketName,
+                    Key = key
+                };
+
+                using (var response = await client.GetObjectAsync(request))
+                {
+                    var stream = new MemoryStream();
+                    await response.ResponseStream.CopyToAsync(stream);
+                    stream.Position = 0; // Reset stream position to the beginning
+                    var fileName = Path.GetFileName(key);
+                    return new FileAttachment(stream, fileName);
+                }
+            }
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private EmbedBuilder BuildOffenseReportEmbed(OffenseReport offense)
+    {
+        var embed = new EmbedBuilder
+        {
+            Title = $"Offense Report: {offense.offenseId}",
+            Color = Color.Red
+        };
+
+        embed.AddField("Player", $"{offense.playerAlliance} {offense.playerName} ({offense.playerId})", inline: true);
+        embed.AddField("Incident ID", offense.offenseId, inline: true);
+        embed.AddField("Offense Type", offense.offenseType, inline: true);
+        embed.AddField("Details", offense.reportDetails, inline: true);
+        
+        return embed;
+    }
+
 
     public class PlayerRecord
     {
@@ -474,6 +669,8 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
     {
         public string offenseId { get; set; }
         public string playerId { get; set; }
+        public string playerName { get; set; }
+        public string playerAlliance { get; set; }
         public string offenseType { get; set; }
         public DateTime date { get; set; }
         public List<string> evidenceUrls { get; set; }
