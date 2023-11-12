@@ -23,6 +23,7 @@ using System.Composition;
 using MEF.NetCore;
 using DiscordBot.Core;
 using DiscordBot.Core.Contract;
+using Council.DiscordBot;
 
 [DiscordCommand]
 public class ModerationModule : ModuleBase<SocketCommandContext>
@@ -175,9 +176,9 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         catch (Exception ex)
         {
             // Implement logging
-            Console.WriteLine(ex.Message + ex.StackTrace);
+            Console.WriteLine(ex.ConcatMessages());
             await ReplyAsync("Gross... I just swallowed a bug. GET IT OUT OF ME! ");
-            await ReplyAsync(ex.Message);
+            await ReplyAsync(ex.ConcatMessages());
             // Optionally, handle partial success if some files were uploaded before an error occurred
         }
     }
