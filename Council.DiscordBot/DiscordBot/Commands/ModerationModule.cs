@@ -37,10 +37,6 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         {
             try
             {
-
-                Console.WriteLine("EVIDENCE BUCKET NAME: " + _evidenceBucketName + "  or " + Environment.GetEnvironmentVariable("EVIDENCE_BUCKET"));
-                Console.WriteLine("ES_ENDPOINT: " + _esEndpoint + "  or " + Environment.GetEnvironmentVariable("ES_ENDPOINT"));
-
                 var httpConnection = new AwsHttpConnection(new Amazon.Extensions.NETCore.Setup.AWSOptions
                 {
                     Credentials = new InstanceProfileAWSCredentials(),
