@@ -47,7 +47,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
                     Region = RegionEndpoint.USWest2
                 });
 
-                var pool = new SingleNodeConnectionPool(new Uri("https://your-es-domain.region.es.amazonaws.com"));
+                var pool = new SingleNodeConnectionPool(new Uri($"https://{_esEndpoint}"));
 
                 var settings = new ConnectionSettings(pool, httpConnection)
                     .DefaultIndex("players")
