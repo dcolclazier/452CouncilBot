@@ -23,6 +23,7 @@ using System.Numerics;
 using Newtonsoft.Json;
 using System.Text;
 using System.Composition;
+using MEF.NetCore;
 
 public interface IEvidenceStorageService
 {
@@ -75,6 +76,8 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             Console.WriteLine(ex.Message);
             Console.WriteLine(ex.StackTrace);
         }
+
+        MEFLoader.SatisfyImportsOnce(this);
     }
 
     [Command("strike")]
