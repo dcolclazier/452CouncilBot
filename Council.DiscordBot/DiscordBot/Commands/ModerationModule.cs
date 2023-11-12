@@ -25,6 +25,7 @@ using Discord;
 using Amazon.S3.Model;
 using System.Numerics;
 using Newtonsoft.Json;
+using System.Text;
 
 [DiscordCommand]
 public class ModerationModule : ModuleBase<SocketCommandContext>
@@ -159,6 +160,8 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         {
             await ReplyInSourceAsync(languageCode, "I couldn't upload the offense report - something went wrong. Please contact Barry!");
         }
+
+        await UpdatePlayerOffenses(playerRecord.playerId, incidentId);
 
 
         await ReplyInSourceAsync(languageCode, "The offense has possibly been registered (WORK IN PROGRESS). Here's the overview:");
@@ -452,10 +455,10 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
     }
 
 
-    private async Task UpdatePlayerOffenses(ElasticClient client, string playerId, string offenseId)
+    private async Task UpdatePlayerOffenses(string playerId, string offenseId)
     {
-        var updateResponse = await client.UpdateAsync<PlayerRecord, object>(playerId, u => u
-            .Index("offense_reports")
+        var updateResponse = await _elasticClient.UpdateAsync<PlayerRecord, object>(playerId, u => u
+            .Index("players")
             .Script(s => s
                 .Source("ctx._source.offenseIds.add(params.offenseId)")
                 .Params(p => p
@@ -545,31 +548,39 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
 
     private EmbedBuilder BuildPlayerEmbed(PlayerRecord player, IEnumerable<OffenseReport> offenses)
     {
+
+        // Add player details to the embed
         var embed = new EmbedBuilder
         {
             Title = $"Player Information: {player.playerAlliance} {player.playerName}  ({player.playerId})",
             Color = Color.Blue
         };
+        // ... add other player fields as needed
 
-        embed.AddField("Known Names", string.Join(",",player.knownNames), inline: true);
-        embed.AddField("Known Alliances", string.Join(",",player.knownAlliances), inline: true);
-        // Adding offenses
+        // Add offenses
         if (offenses.Any())
         {
+            var incidents = new StringBuilder();
+            incidents.AppendLine("Incidents:");
             foreach (var offense in offenses)
             {
-                embed.AddField($"{offense.date.ToShortDateString()}", $"{offense.reportId}: {offense.offenseType}", inline: true);
+                incidents.AppendLine($"{offense.date.ToString("MM/dd/yyyy")} - {offense.offenseType} - {offense.reportId}");
             }
+            embed.AddField("Offenses", incidents.ToString(), false);
         }
         else
         {
-            embed.AddField("Offenses", "No offenses recorded.");
+            embed.AddField("Offenses", "No offenses recorded", false);
         }
+
+        // Set other embed properties as needed
+        embed.WithColor(Color.Blue); // Example color
 
         return embed;
     }
+
     [Command("offense")]
-    public async Task GetOffenseReportByIdAsync(string offenseId)
+    public async Task GetOffenseReportByIdAsync(string reportId)
     {
         try
         {
@@ -578,10 +589,11 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
                 .Query(q => q
                     .Term(t => t
                         .Field(f => f.reportId)
-                        .Value(offenseId)
+                        .Value(reportId)
                     )
                 )
             );
+            await ReplyAsync(JsonConvert.SerializeObject(response, Formatting.Indented));
 
             if (!response.Documents.Any())
             {
