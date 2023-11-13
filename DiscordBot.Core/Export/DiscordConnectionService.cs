@@ -32,8 +32,8 @@ namespace Council.DiscordBot.Core
     }
 
 
-    //[Export(typeof(IConnectionService))]
-    //[Shared]
+    [Export(typeof(IConnectionService))]
+    [Shared]
     public class DiscordConnectionService : LoggingResource, IConnectionService
     {
         public DiscordSocketClient Client { get; private set; }

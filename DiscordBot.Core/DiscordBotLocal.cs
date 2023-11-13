@@ -16,8 +16,8 @@ namespace DiscordBot.Core
 
     public class DiscordBotLocal : LoggingResource
     {
-        //[Import]
-        private IConnectionService _connectionService { get; set; } = new DiscordConnectionService();
+        [Import]
+        private IConnectionService _connectionService { get; set; }
 
         public DiscordBotLocal() : base(nameof(DiscordBotLocal)) { }
 
