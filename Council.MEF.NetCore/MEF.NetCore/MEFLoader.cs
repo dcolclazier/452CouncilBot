@@ -109,6 +109,7 @@ namespace MEF.NetCore
                 foreach (var property in GetPropertyInfo(obj.GetType(), new List<PropertyInfo>()).Where(prop => Attribute.IsDefined(prop, typeof(ImportAttribute))))
                 {
                     //check to see if we have a mocked object for this property
+                    Console.WriteLine("Setting up MEF for " + property.Name);
                     if (_mockedObjects.ContainsKey(property.PropertyType.ToString()))
                     {
                         property.SetValue(obj, _mockedObjects[property.PropertyType.ToString()]);
@@ -122,6 +123,7 @@ namespace MEF.NetCore
                         catch (Exception)
                         {
                             var exports = string.Join(", ", _container.GetExports(property.PropertyType).Select(i => i.ToString()).ToList());
+                            Console.WriteLine($"Export not found... All exports: {exports}");
                             //logger.LogCritical($"Export not found... All exports: {exports}");
                         }
                     }
