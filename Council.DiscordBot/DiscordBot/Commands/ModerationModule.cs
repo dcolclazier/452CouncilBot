@@ -34,10 +34,12 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
     private readonly string _esEndpoint = Environment.GetEnvironmentVariable("ES_ENDPOINT");
 
     [Import]
-    public ILanguageService _translateService { get; set; }
+    private ILanguageService _translateService { get; set; }
 
     public ModerationModule()
     {
+
+        MEFLoader.SatisfyImportsOnce(this);
         try
         {
             var httpConnection = new AwsHttpConnection(new Amazon.Extensions.NETCore.Setup.AWSOptions
@@ -59,7 +61,6 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             Console.WriteLine(ex.StackTrace);
         }
 
-        MEFLoader.SatisfyImportsOnce(this);
     }
 
     [Command("strike")]

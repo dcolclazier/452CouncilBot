@@ -50,6 +50,8 @@ namespace Council.DiscordBot.Core
 
         public DiscordConnectionService() : base(nameof(DiscordConnectionService))
         {
+
+            MEFLoader.SatisfyImportsOnce(this);
             Client = new DiscordSocketClient(new DiscordSocketConfig
             {
                 LogLevel = LogSeverity.Debug,
@@ -66,7 +68,6 @@ namespace Council.DiscordBot.Core
                 IgnoreExtraArgs = true
             });
 
-            MEFLoader.SatisfyImportsOnce(this);
         }
 
         public async Task InitializeAsync(Func<Task> OnReady, string token, int timeToRun, EventWaitHandle waitHandle)
