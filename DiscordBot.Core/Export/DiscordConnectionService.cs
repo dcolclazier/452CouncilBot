@@ -58,8 +58,6 @@ namespace Council.DiscordBot.Core
                 GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.MessageContent
 
             });
-            //Client.Log += async (message) => await Task.Run(() => Logger.LogInformation($"LOG: {JsonConvert.SerializeObject(message)}"));
-
             Commands = new CommandService(new CommandServiceConfig
             {
                 CaseSensitiveCommands = true,
@@ -82,8 +80,42 @@ namespace Council.DiscordBot.Core
             await RemoveAllCommandsAsync();
 
             var serviceCollection = new ServiceCollection().AddSingleton(Client).AddSingleton(Commands);
+            foreach (var ass in _assemblyFactory.Assemblies().ToList())
+            {
+                var assembly = Assembly.LoadFile(ass);
+                await RegisterCommandsFromAssemblyAsync(assembly, serviceCollection);
+                RegisterEventHandlersFromAssembly(assembly);
+
+            }
+
             Client.MessageReceived += OnMessageReceived;
-            Assembly.GetExecutingAssembly().GetTypes()
+            Client.Ready += OnReady;
+            Services = serviceCollection.BuildServiceProvider();
+
+            await Client.LoginAsync(TokenType.Bot, token);
+            await Client.StartAsync();
+
+            Logger.LogInformation("Client started.... are we online?");
+        }
+        public async Task RegisterCommandsFromAssemblyAsync(Assembly assembly, IServiceCollection serviceCollection)
+        {
+            var innerServiceCollection = new ServiceCollection().AddSingleton(Client).AddSingleton(Commands);
+            assembly.GetTypes()
+                .Where(t => t.GetCustomAttribute<DiscordCommandAttribute>(true) != null ||
+                            t.GetCustomAttribute<ExportAttribute>(true) != null)
+                .ToList()
+                .ForEach(s =>
+                {
+                    Logger.LogInformation($"Found Command Class: {s.Name}");
+                    innerServiceCollection.AddSingleton(s);
+                    serviceCollection.AddSingleton(s);
+                });
+
+            await Commands.AddModulesAsync(assembly, innerServiceCollection.BuildServiceProvider());
+        }
+        public void RegisterEventHandlersFromAssembly(Assembly assembly)
+        {
+            assembly.GetTypes()
                 .SelectMany(type => type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
                 .Where(method => method.GetCustomAttribute<DiscordEventHandlerAttribute>() != null)
                 .ToList()
@@ -96,11 +128,9 @@ namespace Council.DiscordBot.Core
                     if (eventInfo != null)
                     {
                         // Subscribe to the event
-                        eventInfo.AddEventHandler(
-                            Client, 
-                            Delegate.CreateDelegate(eventInfo.EventHandlerType, Activator.CreateInstance(method.DeclaringType), 
-                            method.Name
-                        ));
+                        var handlerInstance = Activator.CreateInstance(method.DeclaringType);
+                        var delegateInstance = Delegate.CreateDelegate(eventInfo.EventHandlerType, handlerInstance, method.Name);
+                        eventInfo.AddEventHandler(Client, delegateInstance);
                         Logger.LogInformation($"Subscribed {method.Name} to DiscordSocketClient.{eventInfo.Name}");
                     }
                     else
@@ -108,33 +138,6 @@ namespace Council.DiscordBot.Core
                         Logger.LogWarning($"Could not find event '{attribute.EventName}' in DiscordSocketClient.");
                     }
                 });
-
-
-            foreach (var ass in _assemblyFactory.Assemblies().ToList())
-            {
-                var assembly = Assembly.LoadFile(ass);
-                var innerServiceCollection = new ServiceCollection().AddSingleton(Client).AddSingleton(Commands);
-                assembly.GetTypes()
-                   .Where(t => t.GetCustomAttribute<DiscordCommandAttribute>(true) is DiscordCommandAttribute ||
-                            t.GetCustomAttribute<ExportAttribute>(true) is ExportAttribute).ToList()
-                   .ForEach(s =>
-                   {
-                       Logger.LogInformation($"Found Command Class: {s.Name}");
-                       innerServiceCollection = innerServiceCollection.AddSingleton(s);
-                       serviceCollection = serviceCollection.AddSingleton(s);
-                   });
-
-                
-
-                await Commands.AddModulesAsync(assembly, innerServiceCollection.BuildServiceProvider());
-            }
-            Client.Ready += OnReady;
-            Services = serviceCollection.BuildServiceProvider();
-
-            await Client.LoginAsync(TokenType.Bot, token);
-            await Client.StartAsync();
-
-            Logger.LogInformation("Client started.... are we online?");
         }
         public async Task RemoveAllCommandsAsync()
         {

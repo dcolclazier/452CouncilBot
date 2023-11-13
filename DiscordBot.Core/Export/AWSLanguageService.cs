@@ -13,7 +13,7 @@ using DiscordBot.Core.Contract;
 [Export(typeof(ILanguageService))]
 public class AWSLanguageService : LoggingResource, ILanguageService
 {
-    protected AWSLanguageService() : base(nameof(AWSLanguageService)) { }
+    public AWSLanguageService() : base(nameof(AWSLanguageService)) { }
 
     public async Task<string?> DetectLanguageAsync(string text)
     {
