@@ -273,7 +273,6 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
     }
 
 
-    //not working currently...
     private string GetClosestOffenseType(string input)
     {
         if (string.IsNullOrWhiteSpace(input))
@@ -676,7 +675,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         };
         embed.AddField("Incident ID", offense.reportId, inline: true);
         embed.AddField("Offense Type", offense.offenseType, inline: true);
-        embed.AddField("Details", offense.reportDetails, inline: true);
+        embed.AddField("Details", string.IsNullOrEmpty(offense.reportDetails) ? "none provided." : offense.reportDetails, inline: true);
         
         return embed;
     }
