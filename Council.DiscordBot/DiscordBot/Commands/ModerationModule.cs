@@ -79,8 +79,8 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
 
             // Language detection and translation logic
             var description = PreprocessMessageForLanguageDetection(messageDetails).Trim();
-
-            string languageCode = await _translateService.DetectLanguageAsync(description);
+            var languageCode = string.IsNullOrEmpty(description) ? "en" : await _translateService.DetectLanguageAsync(description);
+            
             if (languageCode != "en") // Assuming English is the bot's primary language
             {
                 messageDetails = await _translateService.TranslateTextAsync(messageDetails, languageCode, "en");
