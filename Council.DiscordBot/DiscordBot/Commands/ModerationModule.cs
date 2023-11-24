@@ -80,15 +80,21 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             await GetOffenseReportByIdAsync(reportId);
         }
     }
-    public async Task<string?> ParseMessageContents(string messageDetails, string regex)
+    public string ParseMessageContents(string messageDetails, string regex, bool isGroupRegex)
     {
-        var match = Regex.Match(messageDetails, regex);
-        return match.Success? match.Value : null;
+        Match match;
+        if (isGroupRegex)
+        {
+            match = Regex.Match(messageDetails, regex, RegexOptions.IgnoreCase);
+            return match.Success ? match.Groups[1].Value : string.Empty;
+        }
+        match = Regex.Match(messageDetails, regex);
+        return match.Success? match.Value : string.Empty;
     }
 
     public async Task<string> GetResponseFromUser(string prompt, string messageDetails, string regex, string languageCode, bool isOffenseType = false)
     {
-        var parsed = await ParseMessageContents(messageDetails, regex);
+        var parsed = ParseMessageContents(messageDetails, regex, isOffenseType);
         if (parsed != null) return parsed;
 
         await ReplyInSourceAsync(languageCode, $"{prompt} (or 'cancel')");
