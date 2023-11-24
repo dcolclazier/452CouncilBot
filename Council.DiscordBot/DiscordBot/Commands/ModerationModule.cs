@@ -138,7 +138,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             var offenseTypesPattern = string.Join("|", _offenseTypes.Select(Regex.Escape));
             var offenseType = await GetResponseFromUser(
                 $"Please enter the offense type surrounded by () (${string.Join(", ", _offenseTypes)}):",
-                messageDetails, $@"\(({offenseTypesPattern})\)", languageCode, true);
+                messageDetails, $@"(?i)\(({offenseTypesPattern})\)", languageCode, true);
 
             await ReplyInSourceAsync(languageCode, evidenceS3Urls.Any()
                 ? "Would you like to provide any more evidence? Just say 'no' to finish."
@@ -219,7 +219,17 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             if (isOffenseType)
             {
                 // Special handling for offense type to include fuzzy logic matching
-                return GetClosestOffenseType(response.Content);
+                var match = Regex.Match(response.Content, pattern);
+                if (match.Success)
+                {
+                    return match.Groups[1].Value;
+                }
+                else
+                {
+                    // If there's no regex match, use fuzzy logic to determine the closest offense type
+                    var closest = GetClosestOffenseType(response.Content);
+                    if (!string.IsNullOrEmpty(closest)) return closest;
+                }
             }
             else if (Regex.IsMatch(response.Content, pattern))
             {
@@ -231,7 +241,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
     }
     private async Task<SocketMessage> NextMessageAsync(TimeSpan? timeout = null)
     {
-        timeout ??= TimeSpan.FromSeconds(15); // Default timeout
+        timeout ??= TimeSpan.FromSeconds(30); // Default timeout
         var sourceUser = Context.User;
         var sourceChannel = Context.Channel;
 
