@@ -139,13 +139,18 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
 
             var embed = new EmbedBuilder
             {
-                Title = $"The offense has been registered. Overview:",
+                Title = $"The offense has been registered.",
                 Color = Color.Blue
             };
+            embed.AddField("Report Id:", incidentId);
             embed.AddField("Player name:", $"{playerName} ({playerId})");
             embed.AddField("Offense Type:", offenseType);
             embed.AddField("Evidence pics/video count:", evidenceS3Urls.Count);
             embed.AddField("Description", description);
+            embed.Footer = new EmbedFooterBuilder
+            {
+                Text = $"Tip: You can retrieve this report by sending this command: '!offense {incidentId}'"
+            };
 
             await ReplyAsync(embed: embed.Build());
 
