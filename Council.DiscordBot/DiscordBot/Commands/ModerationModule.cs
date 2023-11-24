@@ -202,7 +202,14 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         message = Regex.Replace(message, @"\[\w+\]", "");
         message = Regex.Replace(message, @"'[^']*'", "");
         message = Regex.Replace(message, @"\b\d{8,9}\b", "");
-        message = Regex.Replace(message, "\"[^\"]*\"", "");
+        var isFirst = true;
+        message = Regex.Replace(message, @"\(([^)]+)\)", m =>
+        {
+            if (!isFirst) return m.Value;
+            isFirst = false;
+            return "";
+        });
+
         return message;
     }
 
