@@ -133,11 +133,12 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             
             var allianceTag = await GetResponseFromUser(
                 "Please enter the Alliance tag in the format [AAA]:",
-                messageDetails, "\"[^\"]*\"", languageCode);
+                messageDetails, @"\[[A-Za-z]{3}\]", languageCode);
 
+            var offenseTypesPattern = string.Join("|", _offenseTypes.Select(Regex.Escape));
             var offenseType = await GetResponseFromUser(
-                $"Please enter the Offense Type (${string.Join(", ", _offenseTypes)}):",
-                messageDetails, string.Join("|", _offenseTypes), languageCode, true);
+                $"Please enter the offense type surrounded by () (${string.Join(", ", _offenseTypes)}):",
+                messageDetails, $@"\(({offenseTypesPattern})\)", languageCode, true);
 
             await ReplyInSourceAsync(languageCode, evidenceS3Urls.Any()
                 ? "Would you like to provide any more evidence? Just say 'no' to finish."
