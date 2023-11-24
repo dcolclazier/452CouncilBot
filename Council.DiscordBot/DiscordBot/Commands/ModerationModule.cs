@@ -1,29 +1,31 @@
-﻿using Discord.Commands;
-using System;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-using System.Linq;
-using Amazon.S3;
-using Amazon.S3.Transfer;
-using System.Collections.Generic;
-using Discord.WebSocket;
-using System.Threading;
-using System.Net.Http;
-using System.IO;
-using Nest;
-using Elasticsearch.Net;
-using Elasticsearch.Net.Aws;
+﻿using Amazon;
+using Amazon.Comprehend;
 using Amazon.Runtime;
-using Amazon;
-using Discord;
+using Amazon.S3;
 using Amazon.S3.Model;
-using Newtonsoft.Json;
-using System.Text;
-using System.Composition;
-using MEF.NetCore;
+using Amazon.S3.Transfer;
+using Council.DiscordBot;
+using Discord;
+using Discord.Commands;
+using Discord.WebSocket;
 using DiscordBot.Core;
 using DiscordBot.Core.Contract;
-using Council.DiscordBot;
+using Elasticsearch.Net;
+using Elasticsearch.Net.Aws;
+using MEF.NetCore;
+using Nest;
+using Newtonsoft.Json;
+using System;
+using System.Collections.Generic;
+using System.Composition;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Numerics;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
 
 [DiscordCommand]
 public class ModerationModule : ModuleBase<SocketCommandContext>
@@ -63,6 +65,26 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
 
     }
 
+    public async Task<string?> ParseMessageContents(string messageDetails, string regex)
+    {
+        var match = Regex.Match(messageDetails, regex);
+        return match.Success? match.Value : null;
+    }
+
+    public async Task<string> GetResponseFromUser(string prompt, string messageDetails, string regex, string languageCode, bool isOffenseType = false)
+    {
+        var parsed = await ParseMessageContents(messageDetails, regex);
+        if (parsed != null) return parsed;
+
+        await ReplyInSourceAsync(languageCode, $"{prompt} (or 'cancel')");
+        var response = await GetInteractiveResponseAsync(regex, isOffenseType);
+        if (response == "cancel")
+        {
+            throw new OperationCanceledException("Operation was cancelled");
+        }
+        return await GetResponseFromUser(prompt, response, regex, languageCode, isOffenseType);
+    }
+
     [Command("strike")]
     public async Task StrikeAsync()
     {
@@ -72,76 +94,36 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
 
             var messageDetails = Context.Message.Content;
 
-            string playerId = null;
-            string playerName = null;
-            string allianceTag = null;
-            string offenseType = null;
 
             // Language detection and translation logic
             var description = PreprocessMessageForLanguageDetection(messageDetails).Trim();
             var languageCode = string.IsNullOrEmpty(description) ? "en" : await _translateService.DetectLanguageAsync(description);
-            
             if (languageCode != "en") // Assuming English is the bot's primary language
             {
                 messageDetails = await _translateService.TranslateTextAsync(messageDetails, languageCode, "en");
             }
 
-            // Attempt to extract information from the initial message
-            var playerIdMatch = Regex.Match(messageDetails, @"\b\d{8,9}\b");
-            if (playerIdMatch.Success) playerId = playerIdMatch.Value;
 
-            var playerNameMatch = Regex.Match(messageDetails, @"'([^']*)'");
-            if (playerNameMatch.Success) playerName = playerNameMatch.Groups[1].Value;
+            var playerId = await GetResponseFromUser(
+                "Please enter the Player ID:", 
+                messageDetails, @"\b\d{8,9}\b", languageCode);
+            
+            var playerName = await GetResponseFromUser(
+                "Please enter the Player's name, enclosed in single quotes:", 
+                messageDetails, @"'([^']*)'", languageCode);
+            
+            var allianceTag = await GetResponseFromUser(
+                "Please enter the Alliance tag in the format [AAA]:",
+                messageDetails, @"'([^']*)'", languageCode);
 
-            var allianceMatch = Regex.Match(messageDetails, @"\[\w{3}\]");
-            if (allianceMatch.Success) allianceTag = allianceMatch.Value;
+            var offenseType = await GetResponseFromUser(
+                $"Please enter the Offense Type (${string.Join(", ", _offenseTypes)}):",
+                messageDetails, string.Join("|", _offenseTypes), languageCode, true);
 
-            var offenseTypeInput = Regex.Match(messageDetails, "\"[^\"]*\"");
-            if (offenseTypeInput.Success) offenseType = GetClosestOffenseType(offenseTypeInput.Value);
-
-            if (Context.Message.Attachments.Any())
-            {
-                foreach (var attachment in Context.Message.Attachments)
-                {
-                    //var s3Url = await UploadToS3(bucketName, attachment.Url);
-                    evidenceS3Urls.Add(attachment.Url);
-                }
-            }
-            // If any information is missing, start an interactive dialogue
-            if (playerId == null || playerName == null || allianceTag == null || offenseType == null || !evidenceS3Urls.Any())
-            {
-                await ReplyInSourceAsync(languageCode, "Some information is missing. Let's go through the details step by step.");
-            }
-
-            // Interactive dialogue to fill in missing information, looks like shit...
-            if (playerId == null)
-            {
-                await ReplyInSourceAsync(languageCode, "Please enter the Player ID:");
-                playerId = await GetInteractiveResponseAsync(@"\b\d{8,9}\b");
-            }
-            if (playerName == null)
-            {
-                await ReplyInSourceAsync(languageCode, "Please enter the Player's name, enclosed in single quotes:");
-                playerName = await GetInteractiveResponseAsync(@"'([^']*)'");
-                playerName = playerName?.Trim('\'');
-            }
-            if (allianceTag == null)
-            {
-                await ReplyInSourceAsync(languageCode, "Please enter the Alliance tag in the format [AAA]:");
-                allianceTag = await GetInteractiveResponseAsync(@"\[\w{3}\]");
-            }
-            if (offenseType == null)
-            {
-                await ReplyInSourceAsync(languageCode, $"Please enter the Offense Type (${string.Join(", ", _offenseTypes)}):");
-                offenseType = await GetInteractiveResponseAsync(string.Join("|", _offenseTypes), true); // Using fuzzy logic
-            }
-
-
-            var message = evidenceS3Urls.Any()
+            await ReplyInSourceAsync(languageCode, evidenceS3Urls.Any()
                 ? "Would you like to provide any more evidence? Just say 'no' to finish."
-                : "Please provide evidence for the offense (links or attach files) or 'no' to cancel:";
+                : "Please provide evidence for the offense (links or attach files) or 'no' to cancel:");
 
-            await ReplyInSourceAsync(languageCode, message);
             evidenceS3Urls.AddRange(await GetAttachmentResponseAsync());
             if (evidenceS3Urls.Count == 0)
             {
@@ -150,34 +132,31 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             }
 
             var playerRecord = await CreateOrUpdatePlayerRecordAsync(_elasticClient, playerId, playerName, allianceTag);
-            if (string.IsNullOrEmpty(playerRecord.playerId))
-            {
-                await ReplyInSourceAsync(languageCode, "I couldn't create a player record - something went wrong. Please contact Barry!");
-            }
-
             var fileUrls = await CopyDiscordAttachmentsToS3Async(Guid.NewGuid().ToString(), _evidenceBucketName, evidenceS3Urls);
-            if (fileUrls.Count != evidenceS3Urls.Count)
-            {
-                await ReplyInSourceAsync(languageCode, "I couldn't copy evidence to backend storage - something went wrong. Please contact Barry!");
-            }
-
             var incidentId = await CreateOffenseReportAsync(_elasticClient, playerName, allianceTag, playerId, offenseType, fileUrls, description);
-            if (string.IsNullOrEmpty(incidentId))
-            {
-                await ReplyInSourceAsync(languageCode, "I couldn't upload the offense report - something went wrong. Please contact Barry!");
-            }
 
             await UpdatePlayerOffenses(playerRecord.playerId, incidentId);
 
+            var embed = new EmbedBuilder
+            {
+                Title = $"The offense has been registered. Overview:",
+                Color = Color.Blue
+            };
+            embed.AddField("Player name:", $"{playerName} ({playerId})");
+            embed.AddField("Offense Type:", offenseType);
+            embed.AddField("Evidence pics/video count:", evidenceS3Urls.Count);
+            embed.AddField("Description", description);
 
-            await ReplyInSourceAsync(languageCode, "The offense has possibly been registered (WORK IN PROGRESS). Here's the overview:");
-            await ReplyAsync($"{incidentId}: {allianceTag} {playerName} ({playerId}) committed {offenseType} and {evidenceS3Urls.Count} pics/videos were collected as evidence.");
-            await ReplyAsync($"Description: {description}");
+            await ReplyAsync(embed: embed.Build());
+
+        }
+        catch (OperationCanceledException)
+        {
+            await ReplyAsync("Operation has been cancelled.");
         }
         catch (Exception ex)
         {
             // Implement logging
-            Console.WriteLine(ex.ConcatMessages());
             await ReplyAsync("Gross... I just swallowed a bug. GET IT OUT OF ME! ");
             await ReplyAsync(ex.ConcatMessages());
             // Optionally, handle partial success if some files were uploaded before an error occurred
@@ -195,15 +174,12 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
 
     private async Task<IEnumerable<string>> GetAttachmentResponseAsync()
     {
-        var response = await NextMessageAsync(TimeSpan.FromSeconds(30));
-        if (response != null || !response.Content.ToLower().Contains("no"))
+        var response = await NextMessageAsync(TimeSpan.FromSeconds(120));
+        if (response != null && !response.Content.ToLower().Contains("no"))
         {
             return response.Attachments.Select(s => s.Url);
         }
-        else
-        {
-            await ReplyAsync("No attachments. Got it!");
-        }
+        await ReplyAsync("No attachments. Got it!");
         return new List<string>();
     }
 
@@ -212,6 +188,10 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         var response = await NextMessageAsync();
         if (response != null)
         {
+            if(response.Content.ToLower().Trim() == "cancel")
+            {
+                return response.Content;
+            }
             if (isOffenseType)
             {
                 // Special handling for offense type to include fuzzy logic matching
@@ -233,15 +213,6 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
 
         var completionSource = new TaskCompletionSource<SocketMessage>();
 
-#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
-        async Task MessageReceivedHandler(SocketMessage message)
-        {
-            if (message.Author.Id == sourceUser.Id && message.Channel.Id == sourceChannel.Id)
-            {
-                completionSource.TrySetResult(message);
-            }
-        }
-#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
 
         // Register the handler to the MessageReceived event
         Context.Client.MessageReceived += MessageReceivedHandler;
@@ -252,11 +223,20 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         // Check if the task has completed or the timeout has been reached
         await Task.WhenAny(completionSource.Task, Task.Delay(timeout.Value, cancellationTokenSource.Token));
 
-        // Unregister the handler from the MessageReceived event
         Context.Client.MessageReceived -= MessageReceivedHandler;
 
         // Return the result of the task or null if it's cancelled or timed out
         return completionSource.Task.IsCompletedSuccessfully ? completionSource.Task.Result : null;
+
+        Task MessageReceivedHandler(SocketMessage message)
+        {
+            if (message.Author.Id == sourceUser.Id && message.Channel.Id == sourceChannel.Id)
+            {
+                completionSource.TrySetResult(message);
+            }
+
+            return Task.CompletedTask;
+        }
     }
     private async Task ReplyInSourceAsync(string detectedLanguageCode, string englishResponse)
     {
@@ -280,11 +260,10 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
 
         var closestOffenseType = _offenseTypes
             .Select(ot => new { OffenseType = ot, Distance = Fastenshtein.Levenshtein.Distance(input.ToLowerInvariant(), ot.ToLowerInvariant()) })
-            .OrderBy(x => x.Distance)
-            .FirstOrDefault();
+            .MinBy(x => x.Distance);
 
         // Define a threshold for the closest match if necessary, e.g., if distance is more than 3, reject.
-        int threshold = 3;
+        const int threshold = 3;
         return closestOffenseType?.Distance <= threshold ? closestOffenseType.OffenseType : null;
     }
 
@@ -304,9 +283,8 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
                 var fileName = Path.GetFileName(new Uri(fileUrl).AbsolutePath);
 
                 // Download the file from Discord
-                byte[] fileData;
                 using var httpClient = new HttpClient();
-                fileData = await httpClient.GetByteArrayAsync(fileUrl);
+                var fileData = await httpClient.GetByteArrayAsync(fileUrl);
 
                 // Create the correct key with the incident_id prefix
                 var key = $"{incidentId}/{fileName}";

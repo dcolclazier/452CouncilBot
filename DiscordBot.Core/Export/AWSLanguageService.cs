@@ -9,6 +9,45 @@ using System.Composition;
 using AWS.Logging;
 using Microsoft.Extensions.Logging;
 using DiscordBot.Core.Contract;
+using Amazon.S3.Model;
+using Nest;
+
+[Export(typeof(IElasticsearchService))]
+public class Elasticsearch710Service : LoggingResource, IElasticsearchService
+{
+    public Elasticsearch710Service() : base(nameof(Elasticsearch710Service)) 
+    {
+
+    }
+
+    public Task<string> CreateOffenseReportAsync(OffenseReport report)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<string> CreateOrUpdatePlayerAsync(PlayerRecord player)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<OffenseReport> GetOffenseReportByIdAsync(string reportId)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<PlayerRecord> GetPlayerByIdAsync(string playerId)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<ElasticClient> InitializeElasticsearchClientAsync(string defaultIndex)
+    {
+        throw new NotImplementedException();
+    }
+}
+
+
+
 
 [Export(typeof(ILanguageService))]
 public class AWSLanguageService : LoggingResource, ILanguageService
