@@ -136,9 +136,11 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
                 messageDetails, @"\[[A-Za-z]{3}\]", languageCode);
 
             var offenseTypesPattern = string.Join("|", _offenseTypes.Select(Regex.Escape));
+            var pattern = $@"\(({offenseTypesPattern})\)"; // Pattern to match (Base), (Tile), etc.
+
             var offenseType = await GetResponseFromUser(
-                $"Please enter the offense type surrounded by () (${string.Join(", ", _offenseTypes)}):",
-                messageDetails, $@"(?i)\(({offenseTypesPattern})\)", languageCode, true);
+                $"Please enter the offense type surrounded by () ({string.Join(", ", _offenseTypes)}):",
+                messageDetails, pattern, languageCode, true);
 
             await ReplyInSourceAsync(languageCode, evidenceS3Urls.Any()
                 ? "Would you like to provide any more evidence? Just say 'no' to finish."
@@ -219,7 +221,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             if (isOffenseType)
             {
                 // Special handling for offense type to include fuzzy logic matching
-                var match = Regex.Match(response.Content, pattern);
+                var match = Regex.Match(response.Content, pattern, RegexOptions.IgnoreCase);
                 if (match.Success)
                 {
                     return match.Groups[1].Value;
