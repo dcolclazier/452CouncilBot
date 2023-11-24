@@ -589,7 +589,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             var count = 1;
             foreach (var offense in offenseReports)
             {
-                incidents.AppendLine($"{count}: {offense.date.ToString("MM/dd/yyyy")} - {offense.offenseType} - {offense.reportId}");
+                incidents.AppendLine($"{count++}: {offense.date.ToString("MM/dd/yyyy")} - {offense.offenseType} - {offense.reportId}");
             }
             embed.AddField("Incidents:", incidents.ToString(), false);
         }
@@ -616,7 +616,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         var count = 1;
         foreach (var offense in offenses)
         {
-            componentBuilder.WithButton($"Get Report {count}", $"get_report_{offense.reportId}", ButtonStyle.Primary);
+            componentBuilder.WithButton($"Get Report {count++}", $"get_report_{offense.reportId}", ButtonStyle.Primary);
         }
         return componentBuilder;
     }
