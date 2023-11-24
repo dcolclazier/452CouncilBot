@@ -68,7 +68,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         }
 
     }
-    [DiscordEventHandler("ButtonClicked")]
+    [DiscordEventHandler("ComponentInteractionCreated")]
     public async Task HandleButtonClicked(SocketMessageComponent buttonComponent)
     {
         // Extract the report ID from the custom ID of the button
@@ -83,6 +83,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
     public string ParseMessageContents(string messageDetails, string regex, bool isGroupRegex)
     {
         Match match;
+        Console.WriteLine($"[DEBUG] ParseMessage: {messageDetails} | {regex} | {isGroupRegex}");
         if (isGroupRegex)
         {
             match = Regex.Match(messageDetails, regex, RegexOptions.IgnoreCase);
@@ -95,7 +96,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
     public async Task<string> GetResponseFromUser(string prompt, string messageDetails, string regex, string languageCode, bool isOffenseType = false)
     {
         var parsed = ParseMessageContents(messageDetails, regex, isOffenseType);
-        if (parsed != null) return parsed;
+        if (!string.IsNullOrEmpty(parsed)) return parsed;
 
         await ReplyInSourceAsync(languageCode, $"{prompt} (or 'cancel')");
         var response = await GetInteractiveResponseAsync(regex, isOffenseType);
@@ -123,7 +124,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             {
                 messageDetails = await _translateService.TranslateTextAsync(messageDetails, languageCode, "en");
             }
-
+            Console.WriteLine($"[DEBUG] - Message Details: {messageDetails}");
             if (Context.Message.Attachments.Any())
             {
                 evidenceS3Urls.AddRange(Context.Message.Attachments.Select(attachment => attachment.Url));
