@@ -5,6 +5,7 @@ using Amazon.S3;
 using Amazon.S3.Model;
 using Amazon.S3.Transfer;
 using Council.DiscordBot;
+using Council.DiscordBot.Core;
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
@@ -26,6 +27,9 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+
+
+
 
 [DiscordCommand]
 public class ModerationModule : ModuleBase<SocketCommandContext>
@@ -64,7 +68,18 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         }
 
     }
+    [DiscordEventHandler("ButtonClicked")]
+    public async Task HandleButtonClicked(SocketMessageComponent buttonComponent)
+    {
+        // Extract the report ID from the custom ID of the button
+        var customId = buttonComponent.Data.CustomId;
+        if (customId.StartsWith("get_report_"))
+        {
+            var reportId = customId.Replace("get_report_", "");
 
+            await GetOffenseReportByIdAsync(reportId);
+        }
+    }
     public async Task<string?> ParseMessageContents(string messageDetails, string regex)
     {
         var match = Regex.Match(messageDetails, regex);
@@ -78,7 +93,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
 
         await ReplyInSourceAsync(languageCode, $"{prompt} (or 'cancel')");
         var response = await GetInteractiveResponseAsync(regex, isOffenseType);
-        if (response == "cancel")
+        if (response.ToLower() == "cancel")
         {
             throw new OperationCanceledException("Operation was cancelled");
         }
@@ -118,7 +133,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             
             var allianceTag = await GetResponseFromUser(
                 "Please enter the Alliance tag in the format [AAA]:",
-                messageDetails, @"'([^']*)'", languageCode);
+                messageDetails, "\"[^\"]*\"", languageCode);
 
             var offenseType = await GetResponseFromUser(
                 $"Please enter the Offense Type (${string.Join(", ", _offenseTypes)}):",
@@ -153,7 +168,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             embed.AddField("Description", description);
             embed.Footer = new EmbedFooterBuilder
             {
-                Text = $"Tip: You can retrieve this report by sending this command: '!offense {incidentId}'"
+                Text = $"!offense {incidentId}"
             };
 
             await ReplyAsync(embed: embed.Build());
@@ -188,7 +203,6 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         {
             return response.Attachments.Select(s => s.Url);
         }
-        await ReplyAsync("No attachments. Got it!");
         return new List<string>();
     }
 
@@ -520,7 +534,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         }
     }
 
-    private EmbedBuilder BuildPlayerEmbed(PlayerRecord player, IEnumerable<OffenseReport> offenses)
+    private static EmbedBuilder BuildPlayerEmbed(PlayerRecord player, IEnumerable<OffenseReport> offenses)
     {
         // Add player details to the embed
         var embed = new EmbedBuilder
@@ -529,17 +543,26 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             Color = Color.Blue
         };
 
-        var redflag = new StringBuilder();
-        redflag.AppendLine($"{player.redFlag} - {player.redFlagReason}");
-        embed.AddField("Red Flag:", redflag.ToString());
+        var redFlag = new StringBuilder();
+        redFlag.AppendLine($"{player.redFlag} - {player.redFlagReason}");
+        embed.AddField("Red Flag Status:", player.redFlag);
+        if (player.redFlag)
+        {
+            embed.AddField("Reason:", player.redFlagReason);
+        }
+
+        embed.AddField("Known Names:", player.knownNames);
+        embed.AddField("Known alliances:", player.knownAlliances);
 
         // Add offenses
-        if (offenses.Any())
+        var offenseReports = offenses.ToList();
+        if (offenseReports.Any())
         {
             var incidents = new StringBuilder();
-            foreach (var offense in offenses)
+            var count = 1;
+            foreach (var offense in offenseReports)
             {
-                incidents.AppendLine($"{offense.date.ToString("MM/dd/yyyy")} - {offense.offenseType} - {offense.reportId}");
+                incidents.AppendLine($"{count}: {offense.date.ToString("MM/dd/yyyy")} - {offense.offenseType} - {offense.reportId}");
             }
             embed.AddField("Incidents:", incidents.ToString(), false);
         }
@@ -552,8 +575,9 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
     }
     public async Task SendPlayerInfoAsync(PlayerRecord player, IEnumerable<OffenseReport> offenses)
     {
-        var embed = BuildPlayerEmbed(player, offenses).Build();
-        var components = CreateReportButtons(offenses).Build();
+        var offenseReports = offenses.ToList();
+        var embed = BuildPlayerEmbed(player, offenseReports).Build();
+        var components = CreateReportButtons(offenseReports).Build();
 
         await ReplyAsync(embed: embed, components: components);
     }
@@ -562,9 +586,10 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
     private ComponentBuilder CreateReportButtons(IEnumerable<OffenseReport> offenses)
     {
         var componentBuilder = new ComponentBuilder();
+        var count = 1;
         foreach (var offense in offenses)
         {
-            componentBuilder.WithButton("Get Report", $"get_report_{offense.reportId}", ButtonStyle.Primary);
+            componentBuilder.WithButton($"Get Report {count}", $"get_report_{offense.reportId}", ButtonStyle.Primary);
         }
         return componentBuilder;
     }
