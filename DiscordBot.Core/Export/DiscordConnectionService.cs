@@ -16,6 +16,7 @@ using System.Composition;
 using DiscordBot.Core;
 using DiscordBot.Core.Contract;
 using Newtonsoft.Json;
+using Discord.Interactions;
 
 namespace Council.DiscordBot.Core
 {
@@ -30,7 +31,16 @@ namespace Council.DiscordBot.Core
             EventName = eventName;
         }
     }
+    [AttributeUsage(AttributeTargets.Method)]
+    public class DiscordInteractionAttribute : Attribute
+    {
+        public string CustomId { get; }
 
+        public DiscordInteractionAttribute(string customId)
+        {
+            CustomId = customId;
+        }
+    }
 
     [Export(typeof(IConnectionService))]
     [Shared]
@@ -39,7 +49,7 @@ namespace Council.DiscordBot.Core
         public DiscordSocketClient Client { get; private set; }
         public CommandService Commands { get; private set; }
         public ServiceProvider Services { get; private set; }
-
+        public InteractionService InteractionService { get; private set; }
 
         private Timer? _timer;
         private EventWaitHandle? _waitHandle;
@@ -61,35 +71,40 @@ namespace Council.DiscordBot.Core
             Commands = new CommandService(new CommandServiceConfig
             {
                 CaseSensitiveCommands = true,
-                DefaultRunMode = RunMode.Async,
+                DefaultRunMode = Discord.Commands.RunMode.Async,
                 LogLevel = LogSeverity.Debug,
                 IgnoreExtraArgs = true
             });
 
+            InteractionService = new InteractionService(Client, new InteractionServiceConfig()
+            {
+                DefaultRunMode = Discord.Interactions.RunMode.Async,
+                LogLevel = LogSeverity.Debug,
+                InteractionCustomIdDelimiters = new []{'|'},
+                
+            });
+
         }
 
-        public async Task InitializeAsync(Func<Task> OnReady, string token, int timeToRun, EventWaitHandle waitHandle)
+        public async Task InitializeAsync(Func<Task> onReady, string token, int timeToRun, EventWaitHandle waitHandle)
         {
-            if (waitHandle != null)
-            {
-                _waitHandle = waitHandle;
-            }
+            _waitHandle = waitHandle;
             Logger.LogInformation("InitializeAsync");
             if (timeToRun > 0) StartTimer(timeToRun);
 
             await RemoveAllCommandsAsync();
 
             var serviceCollection = new ServiceCollection().AddSingleton(Client).AddSingleton(Commands);
-            foreach (var ass in _assemblyFactory.Assemblies().ToList())
+            foreach (var assembly in _assemblyFactory.Assemblies().ToList().Select(Assembly.LoadFile))
             {
-                var assembly = Assembly.LoadFile(ass);
                 await RegisterCommandsFromAssemblyAsync(assembly, serviceCollection);
                 RegisterEventHandlersFromAssembly(assembly);
-
+                await RegisterInteractionHandlers(assembly);
             }
 
             Client.MessageReceived += OnMessageReceived;
-            Client.Ready += OnReady;
+            Client.InteractionCreated += OnInteractionCreated;
+            Client.Ready += onReady;
             Services = serviceCollection.BuildServiceProvider();
 
             await Client.LoginAsync(TokenType.Bot, token);
@@ -112,6 +127,32 @@ namespace Council.DiscordBot.Core
                 });
 
             await Commands.AddModulesAsync(assembly, innerServiceCollection.BuildServiceProvider());
+        }
+        private async Task RegisterInteractionHandlers(Assembly assembly)
+        {
+            foreach (var type in assembly.GetTypes())
+            {
+                var interactionMethods = type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                    .Where(method => method.GetCustomAttribute<ComponentInteractionAttribute>() != null);
+                foreach (var method in interactionMethods)
+                {
+                    await InteractionService.AddModuleAsync(method.DeclaringType, Services);
+                    // Log the registration for debugging purposes
+                    Logger.LogInformation($"Registered interaction handler: {method?.DeclaringType?.Name}.{method?.Name}");
+                }
+            }
+        }
+        private async Task OnInteractionCreated(SocketInteraction interaction)
+        {
+            try
+            {
+                var ctx = new SocketInteractionContext(Client, interaction);
+                await InteractionService.ExecuteCommandAsync(ctx, Services);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError($"Failed to handle interaction: {ex}");
+            }
         }
         public void RegisterEventHandlersFromAssembly(Assembly assembly)
         {

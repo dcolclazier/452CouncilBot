@@ -8,6 +8,7 @@ using Council.DiscordBot;
 using Council.DiscordBot.Core;
 using Discord;
 using Discord.Commands;
+using Discord.Interactions;
 using Discord.WebSocket;
 using DiscordBot.Core;
 using DiscordBot.Core.Contract;
@@ -67,18 +68,12 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             Console.WriteLine(ex.StackTrace);
         }
 
-    }
-    [DiscordEventHandler("ComponentInteractionCreated")]
-    public async Task HandleButtonClicked(SocketMessageComponent buttonComponent)
-    {
-        // Extract the report ID from the custom ID of the button
-        var customId = buttonComponent.Data.CustomId;
-        if (customId.StartsWith("get_report_"))
-        {
-            var reportId = customId.Replace("get_report_", "");
 
-            await GetOffenseReportByIdAsync(reportId);
-        }
+    }
+    [ComponentInteraction("get_report:*")]
+    public async Task HandleButtonClicked(string reportId)
+    {
+        await GetOffenseReportByIdAsync(reportId);
     }
     public string ParseMessageContents(string messageDetails, string regex, bool isGroupRegex)
     {
@@ -86,16 +81,25 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         Console.WriteLine($"[DEBUG] ParseMessage: {messageDetails} | {regex} | {isGroupRegex}");
         if (isGroupRegex)
         {
+            Console.WriteLine("Is Group Regex...");
             match = Regex.Match(messageDetails, regex, RegexOptions.IgnoreCase);
+            Console.WriteLine(match.ToJsonString(true));
             return match.Success ? match.Groups[1].Value : string.Empty;
         }
+        Console.WriteLine("Is not group regex");
         match = Regex.Match(messageDetails, regex);
+        Console.WriteLine(match.ToJsonString(true));
         return match.Success? match.Value : string.Empty;
     }
 
     public async Task<string> GetResponseFromUser(string prompt, string messageDetails, string regex, string languageCode, bool isOffenseType = false)
     {
+        Console.WriteLine($"GetResponse initial message: {messageDetails}");
+        Console.WriteLine($"GetResponse prompt: {prompt}");
+        Console.WriteLine($"GetResponse regex: {regex}");
+        Console.WriteLine($"GetResponse IsOffenseType: {isOffenseType}");
         var parsed = ParseMessageContents(messageDetails, regex, isOffenseType);
+        Console.WriteLine($"GetResponse parsed message: {parsed}");
         if (!string.IsNullOrEmpty(parsed)) return parsed;
 
         await ReplyInSourceAsync(languageCode, $"{prompt} (or 'cancel')");
@@ -104,6 +108,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         {
             throw new OperationCanceledException("Operation was cancelled");
         }
+        Console.WriteLine($"Retrieved response: {response}");
         return await GetResponseFromUser(prompt, response, regex, languageCode, isOffenseType);
     }
 
@@ -120,34 +125,45 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             // Language detection and translation logic
             var description = PreprocessMessageForLanguageDetection(messageDetails).Trim();
             var languageCode = string.IsNullOrEmpty(description) ? "en" : await _translateService.DetectLanguageAsync(description);
-            if (languageCode != "en") // Assuming English is the bot's primary language
+            Console.WriteLine($"The detected language code is {languageCode}");
+            if (languageCode != "en") 
             {
                 messageDetails = await _translateService.TranslateTextAsync(messageDetails, languageCode, "en");
             }
-            Console.WriteLine($"[DEBUG] - Message Details: {messageDetails}");
+
+            Console.WriteLine($"Translated Message: {messageDetails}");
             if (Context.Message.Attachments.Any())
             {
                 evidenceS3Urls.AddRange(Context.Message.Attachments.Select(attachment => attachment.Url));
             }
+            Console.WriteLine($"Found {evidenceS3Urls.Count} initial attachments.");
 
             var playerId = await GetResponseFromUser(
                 "Please enter the Player ID:", 
                 messageDetails, @"\b\d{8,9}\b", languageCode);
+
+            Console.WriteLine($"Determined player id: {playerId}");
+
             
             var playerName = await GetResponseFromUser(
                 "Please enter the Player's name, enclosed in single quotes:", 
                 messageDetails, @"'([^']*)'", languageCode);
-            
+            Console.WriteLine($"Determined player name: {playerName}");
+
             var allianceTag = await GetResponseFromUser(
                 "Please enter the Alliance tag in the format [AAA]:",
                 messageDetails, @"\[[A-Za-z]{3}\]", languageCode);
+            Console.WriteLine($"Determined alliance tag: {allianceTag}");
 
             var offenseTypesPattern = string.Join("|", _offenseTypes.Select(Regex.Escape));
+            Console.WriteLine($"Offense types pattern: {offenseTypesPattern}");
             var pattern = $@"\(({offenseTypesPattern})\)"; // Pattern to match (Base), (Tile), etc.
+            Console.WriteLine($"Regex pattern: {pattern}");
 
             var offenseType = await GetResponseFromUser(
                 $"Please enter the offense type surrounded by () ({string.Join(", ", _offenseTypes)}):",
                 messageDetails, pattern, languageCode, true);
+            Console.WriteLine($"Determined offense type: {offenseType}");
 
             await ReplyInSourceAsync(languageCode, evidenceS3Urls.Any()
                 ? "Would you like to provide any more evidence? Just say 'no' to finish."
@@ -198,10 +214,16 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
     }
     private string PreprocessMessageForLanguageDetection(string message)
     {
+        Console.WriteLine($"Message before preprocessing: {message}");
         message = Regex.Replace(message, @"!strike\s+", "", RegexOptions.IgnoreCase);
+        Console.WriteLine($"Message before preprocessing: {message}");
+
         message = Regex.Replace(message, @"\[\w+\]", "");
+        Console.WriteLine($"Message before preprocessing: {message}");
         message = Regex.Replace(message, @"'[^']*'", "");
+        Console.WriteLine($"Message before preprocessing: {message}");
         message = Regex.Replace(message, @"\b\d{8,9}\b", "");
+        Console.WriteLine($"Message before preprocessing: {message}");
         var isFirst = true;
         message = Regex.Replace(message, @"\(([^)]+)\)", m =>
         {
@@ -209,6 +231,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             isFirst = false;
             return "";
         });
+        Console.WriteLine($"Message before preprocessing: {message}");
 
         return message;
     }
@@ -616,7 +639,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         var count = 1;
         foreach (var offense in offenses)
         {
-            componentBuilder.WithButton($"Get Report {count++}", $"get_report_{offense.reportId}", ButtonStyle.Primary);
+            componentBuilder.WithButton($"Get Report {count++}", $"get_offense_report|{offense.reportId}", ButtonStyle.Primary);
         }
         return componentBuilder;
     }
