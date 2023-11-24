@@ -103,6 +103,10 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
                 messageDetails = await _translateService.TranslateTextAsync(messageDetails, languageCode, "en");
             }
 
+            if (Context.Message.Attachments.Any())
+            {
+                evidenceS3Urls.AddRange(Context.Message.Attachments.Select(attachment => attachment.Url));
+            }
 
             var playerId = await GetResponseFromUser(
                 "Please enter the Player ID:", 
