@@ -360,6 +360,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
     {
         try
         {
+            Console.WriteLine($"Checking to see if player exists with id {playerId}");
             var searchResponse = await client.SearchAsync<PlayerRecord>(s => s
                 .Query(q => q
                     .Term(t => t
@@ -368,12 +369,13 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
                     )
                 )
             );
-
+            Console.WriteLine(searchResponse.ToJsonString(true));
             PlayerRecord playerRecord;
+
 
             if (searchResponse.Documents.Any())
             {
-                // Player exists, update record
+                Console.WriteLine($"Player exists - updating player record.");
                 playerRecord = searchResponse.Documents.First();
                 if (!playerRecord.knownNames.Contains(playerName))
                 {
@@ -388,6 +390,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             }
             else
             {
+                Console.WriteLine($"Player does not exist with id {playerId} - creating new record.");
                 // Create new player record
                 playerRecord = new PlayerRecord
                 {
@@ -399,8 +402,9 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
                     offenseIds = new List<string>()
                 };
             }
-
+            
             var indexResponse = await client.IndexDocumentAsync(playerRecord);
+            Console.WriteLine(indexResponse.ToJsonString(true));
             return playerRecord;
         }
         catch (Exception ex)
@@ -458,15 +462,38 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
     }
     private async Task UpdatePlayerOffenses(string playerId, string offenseId)
     {
-        var updateResponse = await _elasticClient.UpdateAsync<PlayerRecord, object>(playerId, u => u
+        Console.WriteLine($"Updating player offenses for player id {playerId}");
+        var searchResponse = await _elasticClient.SearchAsync<PlayerRecord>(s => s
             .Index("players")
-            .Script(s => s
-                .Source("ctx._source.offenseIds.add(params.offenseId)")
-                .Params(p => p
-                    .Add("offenseId", offenseId)
-                )
+            .Query(q => q
+                .Term(t => t.Field(f => f.playerId).Value(playerId))
             )
+            .Source(false)
+            .Size(1)
         );
+
+        if (searchResponse.Hits.Any())
+        {
+            var documentId = searchResponse.Hits.First().Id; // This is the _id of the document
+
+            var updateResponse = await _elasticClient.UpdateAsync<PlayerRecord, object>(documentId, u => u
+                .Index("players")
+                .Script(s => s
+                    .Source("ctx._source.offenseIds.add(params.offenseId)")
+                    .Params(p => p.Add("offenseId", offenseId))
+                )
+            );
+            if (!updateResponse.IsValid)
+            {
+                Console.WriteLine("Error updating document.");
+            }
+        }
+        else
+        {
+            // Handle the case where no documents are found
+            Console.WriteLine("No documents found with the provided playerId.");
+        }
+
     }
     [Command("player")]
     public async Task GetPlayerByIdAsync(int playerId)
@@ -476,7 +503,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             .Query(q => q
                 .Term(t => t
                     .Field(f => f.playerId)
-                    .Value(playerId.ToString())
+                    .Value(playerId)
                 )
             )
         );
@@ -567,8 +594,8 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             embed.AddField("Reason:", player.redFlagReason);
         }
 
-        embed.AddField("Known Names:", player.knownNames);
-        embed.AddField("Known alliances:", player.knownAlliances);
+        embed.AddField("Known Names:", player.knownNames.ToString());
+        embed.AddField("Known alliances:", player.knownAlliances.ToString());
 
         // Add offenses
         var offenseReports = offenses.ToList();
