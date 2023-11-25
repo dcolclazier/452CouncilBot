@@ -130,16 +130,16 @@ namespace Council.DiscordBot.Core
         }
         private async Task RegisterInteractionHandlers(Assembly assembly)
         {
-            foreach (var type in assembly.GetTypes())
+            // Find all classes that extend InteractionModuleBase
+            var interactionModules = assembly.GetTypes()
+                .Where(x => x.IsSubclassOf(typeof(InteractionModuleBase<SocketInteractionContext>)))
+                .ToList();
+
+            // Register each module with the InteractionService
+            foreach (var module in interactionModules)
             {
-                var interactionMethods = type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
-                    .Where(method => method.GetCustomAttribute<ComponentInteractionAttribute>() != null);
-                foreach (var method in interactionMethods)
-                {
-                    await InteractionService.AddModuleAsync(method.DeclaringType, Services);
-                    // Log the registration for debugging purposes
-                    Logger.LogInformation($"Registered interaction handler: {method?.DeclaringType?.Name}.{method?.Name}");
-                }
+                await InteractionService.AddModuleAsync(module, Services);
+                Logger.LogInformation($"Registered interaction module: {module.Name}");
             }
         }
         private async Task OnInteractionCreated(SocketInteraction interaction)

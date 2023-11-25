@@ -29,7 +29,17 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
+public class InteractionModule : InteractionModuleBase
+{
 
+    [ComponentInteraction("get_report:*")]
+    public async Task HandleButtonClicked(string reportId)
+    {
+        //this is bad
+        var test = new ModerationModule();
+        await test.GetOffenseReportByIdAsync(reportId);
+    }
+}
 
 
 [DiscordCommand]
@@ -69,11 +79,6 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         }
 
 
-    }
-    [ComponentInteraction("get_report:*")]
-    public async Task HandleButtonClicked(string reportId)
-    {
-        await GetOffenseReportByIdAsync(reportId);
     }
     public string ParseMessageContents(string messageDetails, string regex, bool isGroupRegex)
     {
@@ -510,7 +515,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             .Query(q => q
                 .Term(t => t
                     .Field(f => f.playerId)
-                    .Value(playerId)
+                    .Value(playerId.ToString())
                 )
             )
         );
