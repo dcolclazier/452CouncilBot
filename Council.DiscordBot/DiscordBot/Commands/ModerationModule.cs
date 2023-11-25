@@ -499,11 +499,12 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
     public async Task GetPlayerByIdAsync(int playerId)
     {
         // Fetch player information
+        var stringId = playerId.ToString();
         var searchResponse = await _elasticClient.SearchAsync<PlayerRecord>(s => s
             .Query(q => q
                 .Term(t => t
                     .Field(f => f.playerId)
-                    .Value(playerId)
+                    .Value(stringId)
                 )
             )
         ); 
