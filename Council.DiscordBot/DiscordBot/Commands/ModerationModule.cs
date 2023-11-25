@@ -32,10 +32,11 @@ using System.Threading.Tasks;
 public class InteractionModule : InteractionModuleBase
 {
 
-    [ComponentInteraction("get_report:*")]
-    public async Task HandleButtonClicked(string reportId)
+    [ComponentInteraction("get_offense_report:*")]
+    public async Task GetOfficeReportButtonClicked(string reportId)
     {
         //this is bad
+        Console.WriteLine("Something happened!");
         var test = new ModerationModule();
         await test.GetOffenseReportByIdAsync(reportId);
     }
@@ -46,12 +47,12 @@ public class InteractionModule : InteractionModuleBase
 public class ModerationModule : ModuleBase<SocketCommandContext>
 {
     private readonly string[] _offenseTypes = { "Tile", "Banner", "Base", "Scout" };
-    private ElasticClient _elasticClient;
+    private readonly ElasticClient _elasticClient;
     private readonly string _evidenceBucketName = Environment.GetEnvironmentVariable("EVIDENCE_BUCKET");
     private readonly string _esEndpoint = Environment.GetEnvironmentVariable("ES_ENDPOINT");
 
     [Import]
-    private ILanguageService _translateService { get; set; }
+    private ILanguageService Translator { get; set; }
 
     public ModerationModule()
     {
@@ -132,11 +133,11 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
 
             // Language detection and translation logic
             var description = PreprocessMessageForLanguageDetection(messageDetails).Trim();
-            var languageCode = string.IsNullOrEmpty(description) ? "en" : await _translateService.DetectLanguageAsync(description);
+            var languageCode = string.IsNullOrEmpty(description) ? "en" : await Translator.DetectLanguageAsync(description);
             Console.WriteLine($"The detected language code is {languageCode}");
             if (languageCode != "en") 
             {
-                messageDetails = await _translateService.TranslateTextAsync(messageDetails, languageCode, "en");
+                messageDetails = await Translator.TranslateTextAsync(messageDetails, languageCode, "en");
             }
 
             Console.WriteLine($"Translated Message: {messageDetails}");
@@ -326,7 +327,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         }
         else
         {
-            await ReplyAsync(await _translateService.TranslateTextAsync(englishResponse, "en", detectedLanguageCode));
+            await ReplyAsync(await Translator.TranslateTextAsync(englishResponse, "en", detectedLanguageCode));
         }
 
     }
