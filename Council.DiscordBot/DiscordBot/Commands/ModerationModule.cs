@@ -263,22 +263,20 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             {
                 return response.Content;
             }
-            if (isOffenseType)
-            {
-                // Special handling for offense type to include fuzzy logic matching
-                var match = Regex.Match(response.Content, pattern, RegexOptions.IgnoreCase);
-                if (match.Success)
-                {
-                    return match.Groups[1].Value;
-                }
-                else
-                {
-                    // If there's no regex match, use fuzzy logic to determine the closest offense type
-                    var closest = GetClosestOffenseType(response.Content);
-                    if (!string.IsNullOrEmpty(closest)) return closest;
-                }
-            }
-            else if (Regex.IsMatch(response.Content, pattern))
+            //if (isOffenseType)
+            //{
+            //    // Special handling for offense type to include fuzzy logic matching
+            //    var match = Regex.Match(response.Content, pattern, RegexOptions.IgnoreCase);
+            //    if (match.Success)
+            //    {
+            //        return match.Value;
+            //    }
+
+            //    var closest = GetClosestOffenseType(response.Content);
+            //    if (!string.IsNullOrEmpty(closest)) return closest;
+            //}
+
+            if (Regex.IsMatch(response.Content, pattern, RegexOptions.IgnoreCase))
             {
                 return Regex.Match(response.Content, pattern).Value;
             }
