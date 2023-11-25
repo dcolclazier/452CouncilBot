@@ -500,14 +500,15 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
     {
         // Fetch player information
         var playerResponse = await _elasticClient.SearchAsync<PlayerRecord>(s => s
+            .Index("players")
             .Query(q => q
                 .Term(t => t
                     .Field(f => f.playerId)
-                    .Value(playerId)
+                    .Value(playerId.ToString())
                 )
             )
         );
-
+        Console.WriteLine($"Player Query Response: {playerResponse.ToJsonString(true)}");
         if (!playerResponse.Documents.Any())
         {
             await ReplyAsync("No player found with that ID.");
