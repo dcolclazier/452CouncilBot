@@ -128,8 +128,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         {
             var evidenceS3Urls = new List<string>();
 
-            var messageDetails = Context.Message.Content;
-
+            var messageDetails = Context.Message.Content.Replace("!strike", "");
 
             // Language detection and translation logic
             var description = PreprocessMessageForLanguageDetection(messageDetails).Trim();
