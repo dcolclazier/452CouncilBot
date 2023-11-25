@@ -594,8 +594,8 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             embed.AddField("Reason:", player.redFlagReason);
         }
 
-        embed.AddField("Known Names:", player.knownNames.ToString());
-        embed.AddField("Known alliances:", player.knownAlliances.ToString());
+        embed.AddField("Known Names:", string.Join(", ", player.knownNames));
+        embed.AddField("Known alliances:", string.Join(", ", player.knownAlliances));
 
         // Add offenses
         var offenseReports = offenses.ToList();
