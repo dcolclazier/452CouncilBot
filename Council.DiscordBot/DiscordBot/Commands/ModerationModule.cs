@@ -32,7 +32,7 @@ using System.Threading.Tasks;
 public class InteractionModule : InteractionModuleBase
 {
 
-    [ComponentInteraction("get_offense_report:*")]
+    [ComponentInteraction("get_offense_report|*")]
     public async Task GetOfficeReportButtonClicked(string reportId)
     {
         //this is bad
