@@ -88,8 +88,9 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         {
             Console.WriteLine("Is Group Regex...");
             match = Regex.Match(messageDetails, regex, RegexOptions.IgnoreCase);
-            Console.WriteLine(match.ToJsonString(true));
-            return match.Success ? match.Groups[1].Value : string.Empty;
+            var groupValue = match.Success ? match.Groups[1].Value : string.Empty;
+            Console.WriteLine($"Match: {groupValue}");
+            return groupValue;
         }
         Console.WriteLine("Is not group regex");
         match = Regex.Match(messageDetails, regex);
