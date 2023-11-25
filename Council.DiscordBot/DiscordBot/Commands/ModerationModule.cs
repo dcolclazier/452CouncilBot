@@ -93,8 +93,10 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         }
         Console.WriteLine("Is not group regex");
         match = Regex.Match(messageDetails, regex);
-        Console.WriteLine(match.ToJsonString(true));
-        return match.Success? match.Value : string.Empty;
+
+        var value = match.Success ? match.Value : string.Empty;
+        Console.WriteLine($"Match: {value}");
+        return value;
     }
 
     public async Task<string> GetResponseFromUser(string prompt, string messageDetails, string regex, string languageCode, bool isOffenseType = false)
