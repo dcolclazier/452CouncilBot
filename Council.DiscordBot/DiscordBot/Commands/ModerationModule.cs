@@ -499,23 +499,22 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
     public async Task GetPlayerByIdAsync(int playerId)
     {
         // Fetch player information
-        var playerResponse = await _elasticClient.SearchAsync<PlayerRecord>(s => s
-            .Index("players")
+        var searchResponse = await _elasticClient.SearchAsync<PlayerRecord>(s => s
             .Query(q => q
                 .Term(t => t
                     .Field(f => f.playerId)
-                    .Value(playerId.ToString())
+                    .Value(playerId)
                 )
             )
-        );
-        Console.WriteLine($"Player Query Response: {playerResponse.ToJsonString(true)}");
-        if (!playerResponse.Documents.Any())
+        ); 
+        Console.WriteLine($"Player Query Response: {searchResponse.ToJsonString(true)}");
+        if (!searchResponse.Documents.Any())
         {
             await ReplyAsync("No player found with that ID.");
             return;
         }
 
-        var player = playerResponse.Documents.First();
+        var player = searchResponse.Documents.First();
 
         // Fetch offenses related to the player
         var offenseResponse = await _elasticClient.SearchAsync<OffenseReport>(s => s
