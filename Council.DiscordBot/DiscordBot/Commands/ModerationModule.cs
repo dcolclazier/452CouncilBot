@@ -29,7 +29,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
-public class InteractionModule : InteractionModuleBase
+public class InteractionModule : InteractionModuleBase<SocketInteractionContext>
 {
 
     [ComponentInteraction("get_offense_report|*")]
@@ -103,15 +103,11 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
 
     public async Task<string> GetResponseFromUser(string prompt, string messageDetails, string regex, string languageCode, bool isOffenseType = false)
     {
-        Console.WriteLine($"GetResponse initial message: {messageDetails}");
-        Console.WriteLine($"GetResponse prompt: {prompt}");
-        Console.WriteLine($"GetResponse regex: {regex}");
-        Console.WriteLine($"GetResponse IsOffenseType: {isOffenseType}");
         var parsed = ParseMessageContents(messageDetails, regex, isOffenseType);
         Console.WriteLine($"GetResponse parsed message: {parsed}");
         if (!string.IsNullOrEmpty(parsed)) return parsed;
 
-        await ReplyInSourceAsync(languageCode, $"{prompt} (or 'cancel')");
+        await ReplyInSourceAsync(languageCode, $"{prompt} (or 'cancel'):");
         var response = await GetInteractiveResponseAsync(regex, isOffenseType);
         if (response.ToLower() == "cancel")
         {
@@ -154,12 +150,12 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
 
             
             var playerName = await GetResponseFromUser(
-                "Please enter the Player's name, enclosed in single quotes:", 
+                "Please enter the Player's name, enclosed in single quotes", 
                 messageDetails, @"'([^']*)'", languageCode);
             Console.WriteLine($"Determined player name: {playerName}");
 
             var allianceTag = await GetResponseFromUser(
-                "Please enter the Alliance tag in the format [AAA]:",
+                "Please enter the Alliance tag in the format [AAA]",
                 messageDetails, @"\[[A-Za-z]{3}\]", languageCode);
             Console.WriteLine($"Determined alliance tag: {allianceTag}");
 
@@ -169,7 +165,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             Console.WriteLine($"Regex pattern: {pattern}");
 
             var offenseType = await GetResponseFromUser(
-                $"Please enter the offense type surrounded by () ({string.Join(", ", _offenseTypes)}):",
+                $"Please enter the offense type surrounded by () ({string.Join(", ", _offenseTypes)})",
                 messageDetails, pattern, languageCode, true);
             Console.WriteLine($"Determined offense type: {offenseType}");
 
@@ -220,7 +216,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             // Optionally, handle partial success if some files were uploaded before an error occurred
         }
     }
-    private string PreprocessMessageForLanguageDetection(string message)
+    private static string PreprocessMessageForLanguageDetection(string message)
     {
         Console.WriteLine($"Message before preprocessing: {message}");
         message = Regex.Replace(message, @"!strike\s+", "", RegexOptions.IgnoreCase);
@@ -263,19 +259,6 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             {
                 return response.Content;
             }
-            //if (isOffenseType)
-            //{
-            //    // Special handling for offense type to include fuzzy logic matching
-            //    var match = Regex.Match(response.Content, pattern, RegexOptions.IgnoreCase);
-            //    if (match.Success)
-            //    {
-            //        return match.Value;
-            //    }
-
-            //    var closest = GetClosestOffenseType(response.Content);
-            //    if (!string.IsNullOrEmpty(closest)) return closest;
-            //}
-
             if (Regex.IsMatch(response.Content, pattern, RegexOptions.IgnoreCase))
             {
                 return Regex.Match(response.Content, pattern).Value;
@@ -291,8 +274,6 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         var sourceChannel = Context.Channel;
 
         var completionSource = new TaskCompletionSource<SocketMessage>();
-
-
         // Register the handler to the MessageReceived event
         Context.Client.MessageReceived += MessageReceivedHandler;
 
@@ -330,24 +311,6 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         }
 
     }
-
-
-    private string GetClosestOffenseType(string input)
-    {
-        if (string.IsNullOrWhiteSpace(input))
-            return null;
-
-        var closestOffenseType = _offenseTypes
-            .Select(ot => new { OffenseType = ot, Distance = Fastenshtein.Levenshtein.Distance(input.ToLowerInvariant(), ot.ToLowerInvariant()) })
-            .MinBy(x => x.Distance);
-
-        // Define a threshold for the closest match if necessary, e.g., if distance is more than 3, reject.
-        const int threshold = 3;
-        return closestOffenseType?.Distance <= threshold ? closestOffenseType.OffenseType : null;
-    }
-
-    
-
     private async Task<List<string>> CopyDiscordAttachmentsToS3Async(string incidentId, string bucketName, List<string> fileUrls)
     {
         var s3Urls = new List<string>();
@@ -393,7 +356,6 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
 
         return s3Urls;
     }
-
     private async Task<PlayerRecord> CreateOrUpdatePlayerRecordAsync(ElasticClient client, string playerId, string playerName, string allianceTag)
     {
         try
@@ -494,8 +456,6 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             return string.Empty;
         }
     }
-
-
     private async Task UpdatePlayerOffenses(string playerId, string offenseId)
     {
         var updateResponse = await _elasticClient.UpdateAsync<PlayerRecord, object>(playerId, u => u
