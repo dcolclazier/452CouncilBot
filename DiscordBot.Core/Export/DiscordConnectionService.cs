@@ -80,7 +80,6 @@ namespace Council.DiscordBot.Core
             {
                 DefaultRunMode = Discord.Interactions.RunMode.Async,
                 LogLevel = LogSeverity.Debug,
-                InteractionCustomIdDelimiters = new []{'|'},
                 
             });
 
