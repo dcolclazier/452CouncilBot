@@ -148,8 +148,9 @@ namespace Council.DiscordBot.Core
             {
                 Logger.LogInformation("Interaction created!");
                 var ctx = new SocketInteractionContext(Client, interaction);
-                await InteractionService.ExecuteCommandAsync(ctx, Services);
+                var result = await InteractionService.ExecuteCommandAsync(ctx, Services);
                 Logger.LogInformation("Executed command.");
+                Logger.LogInformation(result?.ToJsonString(true) ?? "no result.");
             }
             catch (Exception ex)
             {
