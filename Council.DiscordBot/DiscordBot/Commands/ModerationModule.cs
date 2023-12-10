@@ -17,6 +17,7 @@ using Elasticsearch.Net.Aws;
 using MEF.NetCore;
 using Nest;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Composition;
@@ -70,7 +71,24 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
 
             var settings = new ConnectionSettings(pool, httpConnection)
                 .DefaultIndex("players")
-                .DisableDirectStreaming();
+                .DisableDirectStreaming()
+                .OnRequestCompleted(callDetails =>
+                {
+                    // Log the request
+                    if (callDetails.RequestBodyInBytes != null)
+                    {
+                        var requestBody = Encoding.UTF8.GetString(callDetails.RequestBodyInBytes);
+                        var prettyJsonRequest = JToken.Parse(requestBody).ToString(Formatting.Indented);
+                        Console.WriteLine($"{callDetails.HttpMethod} {callDetails.Uri} \n{prettyJsonRequest}");
+                    }
+
+                    // Log the response
+                    if (callDetails.ResponseBodyInBytes == null) return;
+                    
+                    var responseBody = Encoding.UTF8.GetString(callDetails.ResponseBodyInBytes);
+                    var prettyJsonResponse = JToken.Parse(responseBody).ToString(Formatting.Indented);
+                    Console.WriteLine($"Status: {callDetails.HttpStatusCode}\n{prettyJsonResponse}");
+                });
             _elasticClient = new ElasticClient(settings);
         }
         catch (Exception ex)
