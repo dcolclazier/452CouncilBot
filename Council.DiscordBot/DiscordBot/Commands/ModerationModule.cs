@@ -36,10 +36,9 @@ public class InteractionModule : InteractionModuleBase<SocketInteractionContext>
     [ComponentInteraction("get_offense_report|*")]
     public async Task GetOfficeReportButtonClicked(string reportId)
     {
-        //this is bad
-        Console.WriteLine("Something happened!");
-        var test = new ModerationModule();
-        await test.GetOffenseReportByIdAsync(reportId);
+        await RespondAsync($"Something happened! Interaction received! Report Id: {reportId}");
+        //var test = new ModerationModule();
+        //await test.GetOffenseReportByIdAsync(reportId);
     }
 }
 
