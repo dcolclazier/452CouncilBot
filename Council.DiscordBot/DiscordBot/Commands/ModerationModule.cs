@@ -33,7 +33,7 @@ using System.Threading.Tasks;
 public class InteractionModule : InteractionModuleBase<SocketInteractionContext>
 {
 
-    [ComponentInteraction("get_offense_report|*")]
+    [ComponentInteraction("report|*")]
     public async Task GetOfficeReportButtonClicked(string reportId)
     {
         await RespondAsync($"Something happened! Interaction received! Report Id: {reportId}");
@@ -650,7 +650,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
         var count = 1;
         foreach (var offense in offenses)
         {
-            componentBuilder.WithButton($"Get Report {count++}", $"get_offense_report|{offense.reportId}", ButtonStyle.Primary);
+            componentBuilder.WithButton($"Get Report {count++}", $"report|{offense.reportId}", ButtonStyle.Primary);
         }
         return componentBuilder;
     }
