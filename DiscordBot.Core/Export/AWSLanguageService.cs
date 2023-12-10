@@ -11,12 +11,53 @@ using Microsoft.Extensions.Logging;
 using DiscordBot.Core.Contract;
 using Amazon.S3.Model;
 using Nest;
+using Amazon.Runtime;
+using Elasticsearch.Net.Aws;
+using Elasticsearch.Net;
+using Newtonsoft.Json.Linq;
+using System.Net;
+using System.Text;
+using Amazon;
+using Newtonsoft.Json;
 
 [Export(typeof(IElasticsearchService))]
+
+[Shared]
 public class Elasticsearch710Service : LoggingResource, IElasticsearchService
 {
+    private readonly string _esEndpoint = Environment.GetEnvironmentVariable("ES_ENDPOINT");
+    private readonly ElasticClient _elasticClient;
+
     public Elasticsearch710Service() : base(nameof(Elasticsearch710Service)) 
     {
+        try
+        {
+            var httpConnection = new AwsHttpConnection(new Amazon.Extensions.NETCore.Setup.AWSOptions
+            {
+                Credentials = new InstanceProfileAWSCredentials(),
+                Region = RegionEndpoint.USWest2
+            });
+
+            var pool = new SingleNodeConnectionPool(new Uri($"https://{_esEndpoint}"));
+
+            var settings = new ConnectionSettings(pool, httpConnection)
+                .DefaultIndex("players")
+                .DisableDirectStreaming()
+                .OnRequestCompleted(callDetails =>
+                {
+                    if (callDetails.RequestBodyInBytes == null) return;
+                    
+                    var requestBody = Encoding.UTF8.GetString(callDetails.RequestBodyInBytes);
+                    var prettyJsonRequest = JToken.Parse(requestBody).ToString(Formatting.Indented);
+                    Logger.LogInformation(prettyJsonRequest);
+                });
+            _elasticClient = new ElasticClient(settings);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex.Message);
+            Logger.LogError(ex.StackTrace);
+        }
 
     }
 
@@ -30,9 +71,19 @@ public class Elasticsearch710Service : LoggingResource, IElasticsearchService
         throw new NotImplementedException();
     }
 
-    public Task<OffenseReport> GetOffenseReportByIdAsync(string reportId)
+    public async Task<OffenseReport> GetOffenseReportByIdAsync(string reportId)
     {
-        throw new NotImplementedException();
+        var response = await _elasticClient.SearchAsync<OffenseReport>(s => s
+            .Index("offense_reports")
+            .Query(q => q
+                .Term(t => t
+                    .Field(f => f.reportId)
+                    .Value(reportId)
+                )
+            )
+        );
+
+        return response.Documents.First();
     }
 
     public Task<PlayerRecord> GetPlayerByIdAsync(string playerId)

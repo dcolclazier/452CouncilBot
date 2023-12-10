@@ -1,14 +1,10 @@
 ﻿using Amazon;
-using Amazon.Comprehend;
 using Amazon.Runtime;
 using Amazon.S3;
-using Amazon.S3.Model;
 using Amazon.S3.Transfer;
 using Council.DiscordBot;
-using Council.DiscordBot.Core;
 using Discord;
 using Discord.Commands;
-using Discord.Interactions;
 using Discord.WebSocket;
 using DiscordBot.Core;
 using DiscordBot.Core.Contract;
@@ -24,23 +20,10 @@ using System.Composition;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Numerics;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-
-public class InteractionModule : InteractionModuleBase<SocketInteractionContext>
-{
-
-    [ComponentInteraction("report_*")]
-    public async Task GetOfficeReportButtonClicked(string reportId)
-    {
-        await RespondAsync($"Something happened! Interaction received! Report Id: {reportId}");
-        //var test = new ModerationModule();
-        //await test.GetOffenseReportByIdAsync(reportId);
-    }
-}
 
 
 [DiscordCommand]
@@ -50,9 +33,14 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
     private readonly ElasticClient _elasticClient;
     private readonly string _evidenceBucketName = Environment.GetEnvironmentVariable("EVIDENCE_BUCKET");
     private readonly string _esEndpoint = Environment.GetEnvironmentVariable("ES_ENDPOINT");
+    [Import]
+    private IS3Service _s3Service { get; set; }
 
     [Import]
     private ILanguageService Translator { get; set; }
+
+    [Import]
+    private IElasticsearchService ElasticClient { get; set; }
 
     public ModerationModule()
     {
@@ -237,14 +225,9 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
     {
         Console.WriteLine($"Message before preprocessing: {message}");
         message = Regex.Replace(message, @"!strike\s+", "", RegexOptions.IgnoreCase);
-        Console.WriteLine($"Message before preprocessing: {message}");
-
         message = Regex.Replace(message, @"\[\w+\]", "");
-        Console.WriteLine($"Message before preprocessing: {message}");
         message = Regex.Replace(message, @"'[^']*'", "");
-        Console.WriteLine($"Message before preprocessing: {message}");
         message = Regex.Replace(message, @"\b\d{8,9}\b", "");
-        Console.WriteLine($"Message before preprocessing: {message}");
         var isFirst = true;
         message = Regex.Replace(message, @"\(([^)]+)\)", m =>
         {
@@ -252,7 +235,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             isFirst = false;
             return "";
         });
-        Console.WriteLine($"Message before preprocessing: {message}");
+        Console.WriteLine($"Message after preprocessing: {message}");
 
         return message;
     }
@@ -657,38 +640,18 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
 
 
     [Command("offense")]
-    public async Task GetOffenseReportByIdAsync(string reportId)
+    public async Task GetOffenseReportEmbedCommand(string reportId)
     {
         try
         {
             // Fetch offense report
-            var response = await _elasticClient.SearchAsync<OffenseReport>(s => s
-                .Index("offense_reports")
-                .Query(q => q
-                    .Term(t => t
-                        .Field(f => f.reportId)
-                        .Value(reportId)
-                    )
-                )
-            );
-            Console.WriteLine(JsonConvert.SerializeObject(response, Formatting.Indented));
-
-            if (!response.Documents.Any())
-            {
-                await ReplyAsync("No offense report found with that ID.");
-                return;
-            }
-
-            var offenseReport = response.Documents.First();
-
-            // Prepare the embed
-            var embed = BuildOffenseReportEmbed(offenseReport);
+            var offenseReport = await ElasticClient.GetOffenseReportByIdAsync(reportId);
 
             // Download evidence files and prepare attachments
             var attachments = new List<FileAttachment>();
             foreach (var url in offenseReport.evidenceUrls)
             {
-                var file = await DownloadFileAsync(url);
+                var file = await _s3Service.DownloadFileAsync(url);
                 if (file != null)
                 {
                     attachments.Add((FileAttachment)file);
@@ -696,7 +659,7 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             }
 
             // Send the message with embed and attachments
-            await Context.Channel.SendFilesAsync(attachments, embed: embed.Build());
+            await Context.Channel.SendFilesAsync(attachments, embed: offenseReport.Embed().Build());
         }
         catch (Exception ex)
         {
@@ -706,53 +669,6 @@ public class ModerationModule : ModuleBase<SocketCommandContext>
             await ReplyAsync(ex.Message);
         }
     }
-
-    private async Task<FileAttachment?> DownloadFileAsync(string url)
-    {
-        try
-        {
-            var uri = new Uri(url);
-            var bucketName = uri.Host.Split('.')[0];
-            var key = uri.AbsolutePath.Substring(1); // Remove the leading '/'
-
-            using (var client = new AmazonS3Client())
-            {
-                var request = new GetObjectRequest
-                {
-                    BucketName = bucketName,
-                    Key = key
-                };
-
-                using (var response = await client.GetObjectAsync(request))
-                {
-                    var stream = new MemoryStream();
-                    await response.ResponseStream.CopyToAsync(stream);
-                    stream.Position = 0; // Reset stream position to the beginning
-                    var fileName = Path.GetFileName(key);
-                    return new FileAttachment(stream, fileName);
-                }
-            }
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    private EmbedBuilder BuildOffenseReportEmbed(OffenseReport offense)
-    {
-        var embed = new EmbedBuilder
-        {
-            Title = $"Offense Report: {offense.playerAlliance} {offense.playerName} ({offense.playerId})",
-            Color = Color.Red
-        };
-        embed.AddField("Incident ID", offense.reportId, inline: true);
-        embed.AddField("Offense Type", offense.offenseType, inline: true);
-        embed.AddField("Details", string.IsNullOrEmpty(offense.reportDetails) ? "none provided." : offense.reportDetails, inline: true);
-        
-        return embed;
-    }
-
 
     
 }
