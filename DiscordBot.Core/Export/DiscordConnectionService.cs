@@ -146,6 +146,8 @@ namespace Council.DiscordBot.Core
         {
             try
             {
+                Logger.LogInformation("Interaction created!");
+                Logger.LogInformation(JsonConvert.SerializeObject(interaction, Formatting.Indented));
                 var ctx = new SocketInteractionContext(Client, interaction);
                 await InteractionService.ExecuteCommandAsync(ctx, Services);
             }
