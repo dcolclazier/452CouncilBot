@@ -32,12 +32,8 @@ namespace Council.DiscordBot.Commands
                 return;
             }
 
-            var guild = (Context.Channel as SocketTextChannel)?.Guild;
-            if (guild == null)
-                return;
-
-            var role = guild.Roles.FirstOrDefault(r => r.Name.Equals(matchedRole, StringComparison.InvariantCultureIgnoreCase));
-            await guild.GetUser(Context.User.Id).AddRoleAsync(role);
+            var role = Context.Guild.Roles.FirstOrDefault(r => r.Name.Equals(matchedRole, StringComparison.InvariantCultureIgnoreCase));
+            await Context.Guild.GetUser(Context.User.Id).AddRoleAsync(role);
             await Context.Channel.SendMessageAsync($"{Context.User.Mention} has been granted the \"{matchedRole}\" role.");
             //var adminChannel = Context.Guild.TextChannels.FirstOrDefault(ch => ch.Name.Equals("role-requests", StringComparison.InvariantCultureIgnoreCase));
             //if (adminChannel == null)
