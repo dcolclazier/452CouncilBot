@@ -16,22 +16,33 @@ namespace Council.DiscordBot.Commands
     [DiscordCommand]
     public class RoleRequest : ModuleBase<SocketCommandContext>
     {
+        private readonly List<string> _freeRoles = new()
+        {
+            "Barry's Casino",
+            "Leanie Land"
+        };
         [Command("role")]
         [Summary("Requests a role for the user.")]
         public async Task RequestRoleAsync([Remainder][Summary("The role to request")] string requestedRoleString)
         {
-            var freeRoles = new List<string> { "Barry's Casino", "Leanie Land" }; // Customize this list as needed
+            
 
-            var matchedRole = freeRoles
-                                .OrderByDescending(role => Fuzz.PartialRatio(role, requestedRoleString))
-                                .First();
-            if (matchedRole == null)
+            if (string.IsNullOrWhiteSpace(requestedRoleString))
             {
-                await ReplyAsync("Role not found!");
-                await ReplyAsync($"Role list: {string.Join(",", freeRoles)}");
+                await ReplyAsync("Try !role ROLE_NAME");
+                await ReplyAsync($"Role list: {string.Join(",", _freeRoles)}");
                 return;
             }
 
+            var matchedRole = _freeRoles.MaxBy(role => Fuzz.PartialRatio(role, requestedRoleString));
+            if (matchedRole == null)
+            {
+                await ReplyAsync("Role not found!");
+                await ReplyAsync($"Role list: {string.Join(",", _freeRoles)}");
+                return;
+            }
+
+            await ReplyAsync("Granting Role...");
             var role = Context.Guild.Roles.FirstOrDefault(r => r.Name.Equals(matchedRole, StringComparison.InvariantCultureIgnoreCase));
             await Context.Guild.GetUser(Context.User.Id).AddRoleAsync(role);
             await Context.Channel.SendMessageAsync($"{Context.User.Mention} has been granted the \"{matchedRole}\" role.");
