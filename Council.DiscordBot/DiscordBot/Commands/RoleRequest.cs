@@ -43,9 +43,27 @@ namespace Council.DiscordBot.Commands
             }
 
             await ReplyAsync("Granting Role...");
-            var role = Context.Guild.Roles.FirstOrDefault(r => r.Name.Equals(matchedRole, StringComparison.InvariantCultureIgnoreCase));
-            await Context.Guild.GetUser(Context.User.Id).AddRoleAsync(role);
-            await Context.Channel.SendMessageAsync($"{Context.User.Mention} has been granted the \"{matchedRole}\" role.");
+
+            var actualRole = Context.Guild.Roles.MaxBy(role => Fuzz.PartialRatio(role.Name, matchedRole));
+            if (actualRole == null)
+            {
+                await ReplyAsync("Couldn't match actual role!");
+                await ReplyAsync(string.Join(",", Context.Guild.Roles.Select(r => r.Name)));
+                return;
+            }
+
+            try
+            {
+                await Context.Guild.GetUser(Context.User.Id).AddRoleAsync(actualRole);
+            }
+            catch (Exception ex)
+            {
+                await ReplyAsync("Couldn't add role to user!");
+                await ReplyAsync(ex.Message);
+                return;
+            }
+            
+            await ReplyAsync($"{Context.User.Mention} has been granted the \"{matchedRole}\" role.");
             //var adminChannel = Context.Guild.TextChannels.FirstOrDefault(ch => ch.Name.Equals("role-requests", StringComparison.InvariantCultureIgnoreCase));
             //if (adminChannel == null)
             //{
