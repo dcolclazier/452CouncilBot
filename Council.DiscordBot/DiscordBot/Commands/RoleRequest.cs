@@ -7,38 +7,48 @@ using System;
 using System.Collections.Generic;
 using FuzzySharp;
 using DiscordBot.Core;
+using Amazon.SQS.Model;
+using static Nest.JoinField;
+using System.Data;
 
 namespace Council.DiscordBot.Commands
 {
     [DiscordCommand]
     public class RoleRequest : ModuleBase<SocketCommandContext>
     {
-        [Command("requestrole")]
+        [Command("role")]
         [Summary("Requests a role for the user.")]
         public async Task RequestRoleAsync([Remainder][Summary("The role to request")] string requestedRoleString)
         {
-            var availableRoles = new List<string> { "[MVP] Member", "Admin" }; // Customize this list as needed
+            var freeRoles = new List<string> { "Barry's Casino", "Leanie Land" }; // Customize this list as needed
 
-            var matchedRole = availableRoles
+            var matchedRole = freeRoles
                                 .OrderByDescending(role => Fuzz.PartialRatio(role, requestedRoleString))
                                 .First();
             if (matchedRole == null)
             {
                 await ReplyAsync("Role not found!");
-                await ReplyAsync($"Role list: {string.Join(",", Context.Guild.Roles)}");
+                await ReplyAsync($"Role list: {string.Join(",", freeRoles)}");
                 return;
             }
 
-            var adminChannel = Context.Guild.TextChannels.FirstOrDefault(ch => ch.Name.Equals("role-requests", StringComparison.InvariantCultureIgnoreCase));
-            if (adminChannel == null)
-            {
-                await ReplyAsync("Admin channel not found!");
+            var guild = (Context.Channel as SocketTextChannel)?.Guild;
+            if (guild == null)
                 return;
-            }
 
-            var message = await adminChannel.SendMessageAsync($"{Context.User.Mention} is requesting the \"{matchedRole}\" role. React with ?? to approve or ?? to deny.");
-            await message.AddReactionAsync(new Emoji("👍"));
-            await message.AddReactionAsync(new Emoji("👎"));
+            var role = guild.Roles.FirstOrDefault(r => r.Name.Equals(matchedRole, StringComparison.InvariantCultureIgnoreCase));
+            await guild.GetUser(Context.User.Id).AddRoleAsync(role);
+            await Context.Channel.SendMessageAsync($"{Context.User.Mention} has been granted the \"{matchedRole}\" role.");
+            //var adminChannel = Context.Guild.TextChannels.FirstOrDefault(ch => ch.Name.Equals("role-requests", StringComparison.InvariantCultureIgnoreCase));
+            //if (adminChannel == null)
+            //{
+            //    await ReplyAsync("Admin channel not found!");
+            //    return;
+            //}
+
+            //var message = await adminChannel.SendMessageAsync($"{Context.User.Mention} is requesting the \"{matchedRole}\" role. React with ?? to approve or ?? to deny.");
+            //await message.AddReactionAsync(new Emoji("👍"));
+            //await message.AddReactionAsync(new Emoji("👎"));
         }
         public async Task ReactionAddedAsync(Cacheable<IUserMessage, ulong> cache, ISocketMessageChannel channel, SocketReaction reaction)
         {
