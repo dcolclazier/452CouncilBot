@@ -18,7 +18,7 @@ namespace Council.DiscordBot.Commands
     {
         private readonly List<string> _freeRoles = new()
         {
-            "Barry's Casino",
+            "Casino Jack's",
             "Leanie Land"
         };
         [Command("role")]
