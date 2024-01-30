@@ -7,9 +7,8 @@ using System;
 using System.Collections.Generic;
 using FuzzySharp;
 using DiscordBot.Core;
-using Amazon.SQS.Model;
-using static Nest.JoinField;
 using System.Data;
+using Council.DiscordBot.Core;
 
 namespace Council.DiscordBot.Commands
 {
@@ -75,14 +74,17 @@ namespace Council.DiscordBot.Commands
             //await message.AddReactionAsync(new Emoji("👍"));
             //await message.AddReactionAsync(new Emoji("👎"));
         }
-        public async Task ReactionAddedAsync(Cacheable<IUserMessage, ulong> cache, ISocketMessageChannel channel, SocketReaction reaction)
+
+
+        [DiscordEventHandler("ReactionAdded")]
+        public async Task ReactionAddedAsync(Cacheable<IUserMessage, ulong> cacheableMessage, Cacheable<IMessageChannel, ulong> cacheableChannel, SocketReaction reaction)
         {
             // Check if the reaction is from a message sent by the bot to avoid self-react
             if (reaction.User.Value.IsBot)
                 return;
 
             // Get the message the reaction was added to
-            var message = await cache.GetOrDownloadAsync();
+            var message = await cacheableMessage.GetOrDownloadAsync();
             if (message == null)
                 return;
 
