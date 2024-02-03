@@ -8,7 +8,7 @@ Parameters:
   InstanceType:
     Description: EC2 instance type.
     Type: String
-    Default: t2.micro
+    Default: t3a.large
   VPCId:
     Description: VPC ID where the instance will be launched.
     Type: AWS::EC2::VPC::Id
