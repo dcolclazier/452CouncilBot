@@ -7,8 +7,6 @@ using System;
 using System.Collections.Generic;
 using FuzzySharp;
 using DiscordBot.Core;
-using Amazon.SQS.Model;
-using static Nest.JoinField;
 using System.Data;
 using Council.DiscordBot.Core;
 
@@ -30,7 +28,7 @@ namespace Council.DiscordBot.Commands
                 return;
             }
 
-            var matchedRole = FindBestMatchingRole(requestedRoleString);
+            var matchedRole = await FindBestMatchingRoleAsync(requestedRoleString);
             if (matchedRole == null)
             {
                 await ReplyWithNoMatchFound(requestedRoleString);
@@ -43,27 +41,22 @@ namespace Council.DiscordBot.Commands
         private async Task ReplyWithRoleInstructions()
         {
             await ReplyAsync("Try !role ROLE_NAME");
-            await ReplyAsync($"Role list: {string.Join(",", _freeRoles)}");
+            await ReplyAsync($"Role list: {string.Join(",", Context.Guild.Roles.Select(r => r.Name))}");
         }
 
-        private string FindBestMatchingRole(string roleRequest)
+        private async Task<string> FindBestMatchingRoleAsync(string roleRequest)
         {
-            var bestMatch = FindBestMatchAmongFreeRoles(roleRequest) ?? FindBestMatchAmongGuildRoles(roleRequest);
+
+            var bestMatch = FindBestMatch(Context.Guild.Roles.Select(r => r.Name).ToList(), roleRequest);
+            await ReplyAsync($"Debug: {roleRequest}, {MatchThreshold}, {bestMatch.MatchQuality}");
             return bestMatch != null && bestMatch.MatchQuality >= MatchThreshold ? bestMatch.Role : null;
         }
 
-        private dynamic FindBestMatchAmongFreeRoles(string roleRequest)
+        private dynamic FindBestMatch(List<string>matchList, string item)
         {
-            return _freeRoles.Select(role => new { Role = role, MatchQuality = Fuzz.PartialRatio(role, roleRequest) })
+            return matchList.Select(role => new { Role = role, MatchQuality = Fuzz.PartialRatio(role, item) })
                              .OrderByDescending(r => r.MatchQuality)
                              .FirstOrDefault();
-        }
-
-        private dynamic FindBestMatchAmongGuildRoles(string roleRequest)
-        {
-            return Context.Guild.Roles.Select(role => new { Role = role.Name, MatchQuality = Fuzz.PartialRatio(role.Name, roleRequest) })
-                                      .OrderByDescending(r => r.MatchQuality)
-                                      .FirstOrDefault();
         }
 
         private async Task ReplyWithNoMatchFound(string roleRequest)
@@ -76,9 +69,6 @@ namespace Council.DiscordBot.Commands
         {
             try
             {
-                var actualRole = Context.Guild.Roles.First(role => role.Name == roleName);
-                await Context.Guild.GetUser(Context.User.Id).AddRoleAsync(actualRole);
-                await ReplyAsync($"{Context.User.Mention} has been granted the \"{roleName}\" role.");
                 await NotifyAdminsOfRoleAssignment(roleName);
             }
             catch (Exception ex)
@@ -93,9 +83,9 @@ namespace Council.DiscordBot.Commands
             var adminChannel = Context.Guild.TextChannels.FirstOrDefault(channel => channel.Name.Equals("role-requests", StringComparison.InvariantCultureIgnoreCase));
             if (adminChannel == null)
             {
-                await ReplyAsync("Role Request channel not found!");
+                await ReplyAsync("Role Request channel not found! Contact your administrator, and tell them to create a 'role-requests' channel so they can approve role requests.");
                 return;
-            }
+            } 
 
             var message = await adminChannel.SendMessageAsync($"{Context.User.Mention} is requesting the \"{roleName}\" role. React with 👍 to approve or 👎 to deny.");
             await message.AddReactionAsync(new Emoji("👍"));
@@ -108,27 +98,25 @@ namespace Council.DiscordBot.Commands
             if (reaction.User.Value.IsBot || !(await cacheableMessage.GetOrDownloadAsync() is IUserMessage message) || !IsRoleRequestMessage(message))
                 return;
 
-            var user = await GetUserWhoReacted(cacheableMessage, reaction);
-            if (user == null)
-                return;
-
+            var userToUpdate = await GetUserWhoRequestedRole(cacheableMessage);
             var roleName = ExtractRoleNameFromMessage(message);
             var role = FindRoleInGuild(roleName, reaction);
-            await ProcessRoleAssignmentReaction(user, role, reaction, message);
+            await ProcessRoleAssignmentReaction(userToUpdate, role, reaction, message);
         }
 
         private bool IsRoleRequestMessage(IUserMessage message)
         {
             return message.Content.Contains("is requesting the");
         }
-        private async Task<SocketUser> GetUserWhoReacted(Cacheable<IUserMessage, ulong> cache, SocketReaction reaction)
+
+        private async Task<SocketUser> GetUserWhoRequestedRole(Cacheable<IUserMessage, ulong> cache)
         {
             var message = await cache.GetOrDownloadAsync();
-            if (message == null)
-                return null;
+            if (message == null) return null;
 
-            var users = await message.GetReactionUsersAsync(reaction.Emote, 100).FlattenAsync();
-            return users.ToList().FirstOrDefault(u => !u.IsBot) as SocketUser;
+            var user = message.Content.Split(" ")[0];
+
+            return Context.Guild.Users.FirstOrDefault(u => u.Mention == user);
         }
 
         private string ExtractRoleNameFromMessage(IUserMessage message)
